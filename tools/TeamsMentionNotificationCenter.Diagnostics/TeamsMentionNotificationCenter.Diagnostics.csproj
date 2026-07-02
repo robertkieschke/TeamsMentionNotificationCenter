@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>TeamsMentionNotificationCenter.Diagnostics</RootNamespace>
+    <AssemblyName>TeamsMentionNotificationCenter.Diagnostics</AssemblyName>
+    <!-- Diagnostics tool for Phase 0: proves we can read Teams live captions via UI Automation,
+         control the Teams per-app volume (NAudio) and pause/resume Spotify (WinRT SMTC). -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FlaUI.UIA3" Version="4.0.0" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+</Project>

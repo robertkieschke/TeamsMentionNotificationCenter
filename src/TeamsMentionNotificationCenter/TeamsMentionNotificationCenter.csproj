@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>TeamsMentionNotificationCenter</AssemblyName>
+    <RootNamespace>TeamsMentionNotificationCenter</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Anzeigename der Anwendung (Dateieigenschaften / Task-Manager-Beschreibung). -->
+    <Product>Teams Mention Notification Center</Product>
+    <AssemblyTitle>Teams Mention Notification Center</AssemblyTitle>
+    <Version>1.0.0</Version>
+    <!-- Für spätere Single-File-Verteilung (Phase 4) via dotnet publish (PublishSingleFile, self-contained). -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FlaUI.UIA3" Version="4.0.0" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.3.0" />
+    <!-- System.Drawing.Common wird vom Windows-Desktop-Framework (UseWPF) bereitgestellt;
+         kein expliziter Paketverweis nötig. -->
+
+  </ItemGroup>
+
+</Project>

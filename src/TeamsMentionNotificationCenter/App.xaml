@@ -1,0 +1,10 @@
+<Application x:Class="TeamsMentionNotificationCenter.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:TeamsMentionNotificationCenter"
+             ShutdownMode="OnExplicitShutdown">
+    <!-- Kein StartupUri: Die App startet ohne Hauptfenster und lebt im System-Tray.
+         ShutdownMode=OnExplicitShutdown, damit sie nicht beim Schließen von Fenstern endet. -->
+    <Application.Resources>
+    </Application.Resources>
+</Application>
