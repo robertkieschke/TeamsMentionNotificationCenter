@@ -98,6 +98,8 @@ public sealed class AppController : IDisposable
         }
 
         if (!_settings.DetectionEnabled) return;
+        // Im manuell gewählten Gesprächs-Modus (optional) nicht auslösen – man ist dort bewusst im Gespräch.
+        if (IsManualConversationProtected()) return;
         if (_matcher.TryMatch(e.Line.Speaker, e.Line.Text, out var word))
         {
             _dispatcher.BeginInvoke(() => OnTriggered(word));
@@ -172,11 +174,18 @@ public sealed class AppController : IDisposable
         _ => false
     };
 
+    /// <summary>Manuell (nicht durch Trigger) aktivierter Gesprächs-Modus mit aktivierter Schutz-Option:
+    /// dann keine Namens-Erkennung (kein Glow) und keine automatische Rückkehr in den Ruhe-Modus.</summary>
+    private bool IsManualConversationProtected() =>
+        _settings.DisableDetectionInManualConversation && Mode == AppMode.Conversation && !_conversationFromTrigger;
+
     public void ToggleMode() => SetMode(Mode == AppMode.Conversation ? AppMode.Quiet : AppMode.Conversation);
 
     private void CheckAutoReturn()
     {
         if (!_settings.AutoReturnToQuietEnabled || Mode != AppMode.Conversation) return;
+        // Geschützter manueller Gesprächs-Modus: keine Auto-Rückkehr (man verlässt ihn selbst).
+        if (IsManualConversationProtected()) return;
         // Manuell aktivierten Gesprächs-Modus nur zurückholen, wenn ausdrücklich erlaubt.
         if (!_conversationFromTrigger && !_settings.AutoReturnAlsoWhenManual) return;
         var last = Volatile.Read(ref _lastOwnSpeechTicks);

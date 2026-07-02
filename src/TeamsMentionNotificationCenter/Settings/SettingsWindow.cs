@@ -58,6 +58,7 @@ public sealed class SettingsWindow : Window
     private readonly CheckBox _autoReturn = new() { Content = Loc.T("Automatisch zurück in den Ruhe-Modus, wenn ich eine Zeit lang nichts sage") };
     private readonly TextBox _autoReturnSec = Num();
     private readonly CheckBox _autoReturnManual = new() { Content = Loc.T("Auto-Rückkehr auch bei manueller Aktivierung (Shortcut/Menü)") };
+    private readonly CheckBox _noDetectInManualConv = new() { Content = Loc.T("Im manuellen Gesprächs-Modus keine Erkennung und keine automatische Rückkehr") };
     private readonly CheckBox _detection = new() { Content = Loc.T("Erkennung aktiv") };
     private readonly CheckBox _autostart = new() { Content = Loc.T("Mit Windows starten") };
     private readonly CheckBox _debug = new() { Content = Loc.T("Debug-Log schreiben (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)") };
@@ -219,12 +220,13 @@ public sealed class SettingsWindow : Window
                 _autoReturn,
                 Row(Loc.T("Zeit ohne eigene Wortmeldung (Sekunden):"), _autoReturnSec),
                 _autoReturnManual,
+                _noDetectInManualConv,
                 _detection,
                 _autostart,
                 _debug,
                 Row(Loc.T("Poll-Intervall (ms):"), _pollInterval)
             },
-            new FrameworkElement[] { _language, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _detection, _autostart, _debug, _pollInterval }));
+            new FrameworkElement[] { _language, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _noDetectInManualConv, _detection, _autostart, _debug, _pollInterval }));
 
         tabControl.Items.Add(BuildInfoTab());
 
@@ -387,6 +389,7 @@ public sealed class SettingsWindow : Window
         _autoReturn.IsChecked = s.AutoReturnToQuietEnabled;
         _autoReturnSec.Text = s.AutoReturnAfterSeconds.ToString();
         _autoReturnManual.IsChecked = s.AutoReturnAlsoWhenManual;
+        _noDetectInManualConv.IsChecked = s.DisableDetectionInManualConversation;
         _detection.IsChecked = s.DetectionEnabled;
         _autostart.IsChecked = s.StartWithWindows;
         _debug.IsChecked = s.DebugLogging;
@@ -445,6 +448,7 @@ public sealed class SettingsWindow : Window
         s.AutoReturnToQuietEnabled = _autoReturn.IsChecked == true;
         s.AutoReturnAfterSeconds = ParseInt(_autoReturnSec.Text, s.AutoReturnAfterSeconds, 1, 3600);
         s.AutoReturnAlsoWhenManual = _autoReturnManual.IsChecked == true;
+        s.DisableDetectionInManualConversation = _noDetectInManualConv.IsChecked == true;
         s.DetectionEnabled = _detection.IsChecked == true;
         s.StartWithWindows = _autostart.IsChecked == true;
         s.DebugLogging = _debug.IsChecked == true;

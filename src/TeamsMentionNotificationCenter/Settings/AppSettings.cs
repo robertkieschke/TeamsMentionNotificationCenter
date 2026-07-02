@@ -71,6 +71,9 @@ public sealed class AppSettings
     public int AutoReturnAfterSeconds { get; set; } = 30;
     /// <summary>Auto-Rückkehr auch anwenden, wenn der Gesprächs-Modus MANUELL (Shortcut/Menü) aktiviert wurde.</summary>
     public bool AutoReturnAlsoWhenManual { get; set; } = false;
+    /// <summary>Im MANUELL aktivierten Gesprächs-Modus die Erkennung aussetzen: kein Glow-Trigger und keine
+    /// Auto-Rückkehr in den Ruhe-Modus. Man verlässt den manuellen Gesprächs-Modus dann nur selbst.</summary>
+    public bool DisableDetectionInManualConversation { get; set; } = true;
 
     // --- Glow-Overlay ---
     public string GlowColorHex { get; set; } = "#FF3B30";
@@ -190,6 +193,7 @@ public sealed class AppSettings
         AutoReturnToQuietEnabled = s.AutoReturnToQuietEnabled;
         AutoReturnAfterSeconds = s.AutoReturnAfterSeconds;
         AutoReturnAlsoWhenManual = s.AutoReturnAlsoWhenManual;
+        DisableDetectionInManualConversation = s.DisableDetectionInManualConversation;
         GlowColorHex = s.GlowColorHex;
         GlowDurationMs = s.GlowDurationMs;
         GlowThickness = s.GlowThickness;
