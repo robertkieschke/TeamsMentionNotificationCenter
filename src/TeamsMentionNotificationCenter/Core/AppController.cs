@@ -71,14 +71,6 @@ public sealed class AppController : IDisposable
         _transcript.StatusChanged += OnTranscriptStatusChanged;
         _transcript.Start();
 
-        // Im Debug-Modus einmal beim Start aufleuchten (bestätigt, dass das Overlay rendert).
-        if (_settings.DebugLogging)
-        {
-            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-            t.Tick += (_, _) => { t.Stop(); Logger.Log("Start-Selbsttest: Glow"); _glow.Flash(); };
-            t.Start();
-        }
-
         // Auto-Rückkehr in den Ruhe-Modus, wenn im Gespräch der Name X s nicht mehr fällt.
         _autoReturnTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _autoReturnTimer.Tick += (_, _) => CheckAutoReturn();

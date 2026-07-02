@@ -11,11 +11,16 @@
     <AssemblyName>TeamsMentionNotificationCenter</AssemblyName>
     <RootNamespace>TeamsMentionNotificationCenter</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- Anzeigename der Anwendung (Dateieigenschaften / Task-Manager-Beschreibung). -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <!-- Anzeige-/Dateieigenschaften (Explorer „Details", Task-Manager). -->
     <Product>Teams Mention Notification Center</Product>
     <AssemblyTitle>Teams Mention Notification Center</AssemblyTitle>
+    <Company>inno-focus digital gmbh</Company>
+    <Authors>Robert H. Kieschke</Authors>
+    <Copyright>© 2026 inno-focus digital gmbh</Copyright>
     <Version>1.0.0</Version>
-    <!-- Für spätere Single-File-Verteilung (Phase 4) via dotnet publish (PublishSingleFile, self-contained). -->
+    <FileVersion>1.0.0.0</FileVersion>
+    <!-- Verteilung: dotnet publish -p:PublishProfile=win-x64  (Single-File, self-contained). -->
   </PropertyGroup>
 
   <ItemGroup>

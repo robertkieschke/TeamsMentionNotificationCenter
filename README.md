@@ -44,6 +44,24 @@ src/TeamsMentionNotificationCenter/bin/Release/net10.0-windows10.0.19041.0/Teams
 Die App erscheint als **Tray-Icon** (weiße Sprechblase mit Status-Punkt). Rechtsklick öffnet das Menü:
 Modus wechseln, Erkennung an/aus, **Test: Glow auslösen**, Einstellungen öffnen/neu laden, Beenden.
 
+## Verteilung (Single-File-EXE)
+
+Eine eigenständige, **self-contained** EXE erzeugen – läuft **ohne installiertes .NET** auf dem Zielrechner:
+
+```bash
+dotnet publish src/TeamsMentionNotificationCenter/TeamsMentionNotificationCenter.csproj -p:PublishProfile=win-x64
+```
+
+Ergebnis ist **eine einzige Datei** (~80 MB, inkl. App-Icon):
+
+```
+src/TeamsMentionNotificationCenter/bin/Release/net10.0-windows10.0.19041.0/win-x64/publish/TeamsMentionNotificationCenter.exe
+```
+
+Diese `.exe` kannst du direkt an Kolleg:innen weitergeben – Doppelklick startet die App im Tray, ganz ohne
+Installation. Die daneben liegende `.pdb` ist nur für Debugging und muss nicht mitverteilt werden.
+Einstellungen legt die App beim ersten Start unter `%APPDATA%\TeamsMentionNotificationCenter` an.
+
 ## Bedienung
 
 - **Einstellungen** öffnest du über das Tray-Menü. Alle Parameter sind dort in Reitern editierbar
