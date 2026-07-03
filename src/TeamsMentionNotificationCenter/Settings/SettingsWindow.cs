@@ -18,6 +18,7 @@ public sealed class SettingsWindow : Window
     private readonly AppSettings _current;
     private readonly Action<AppSettings> _onApply;
     private readonly Action<AppSettings> _onTestGlow;
+    private readonly Action<AppSettings> _onTestBanner;
 
     // --- Eingabefelder ---
     private readonly TextBox _triggerWords = Multiline(90);
@@ -40,6 +41,16 @@ public sealed class SettingsWindow : Window
     private readonly TextBox _glowDuration = Num();
     private readonly ComboBox _persistentBorderMode = Combo();
     private readonly List<CheckBox> _monitorChecks = new();
+
+    private readonly CheckBox _bannerEnabled = new() { Content = Loc.T("Bei Erkennung einblenden, wer dich gerufen hat") };
+    private readonly TextBox _bannerText = new() { Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly ComboBox _bannerVert = Combo();
+    private readonly ComboBox _bannerHorz = Combo();
+    private readonly TextBox _bannerSize = Num();
+    private readonly TextBox _bannerColor = new() { Width = 120, HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly TextBox _bannerDuration = Num();
+    private readonly TextBox _bannerOpacity = Num();
+    private readonly List<CheckBox> _bannerMonitorChecks = new();
 
     private readonly CheckBox _soundEnabled = new() { Content = Loc.T("Bei Erkennung zusätzlich einen Ton abspielen") };
     private readonly ComboBox _soundFile = Combo();
@@ -90,14 +101,15 @@ public sealed class SettingsWindow : Window
     private bool _suppressDirty;
     private static readonly System.Windows.Media.Brush DirtyBrush = System.Windows.Media.Brushes.RoyalBlue;
 
-    public SettingsWindow(AppSettings current, Action<AppSettings> onApply, Action<AppSettings> onTestGlow)
+    public SettingsWindow(AppSettings current, Action<AppSettings> onApply, Action<AppSettings> onTestGlow, Action<AppSettings> onTestBanner)
     {
         _current = current;
         _onApply = onApply;
         _onTestGlow = onTestGlow;
+        _onTestBanner = onTestBanner;
 
         Title = AppInfo.DisplayName + Loc.T(" – Einstellungen");
-        Width = 640;
+        Width = 720;
         Height = 620;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Icon = Branding.CreateImageSource(64, Branding.Accent);
@@ -107,6 +119,12 @@ public sealed class SettingsWindow : Window
         _persistentBorderMode.Items.Add(Loc.T("Nie"));
         _persistentBorderMode.Items.Add(Loc.T("Nur bei Namensnennung (Trigger)"));
         _persistentBorderMode.Items.Add(Loc.T("Immer im Gesprächs-Modus"));
+        _bannerVert.Items.Add(Loc.T("Oben"));
+        _bannerVert.Items.Add(Loc.T("Mitte"));
+        _bannerVert.Items.Add(Loc.T("Unten"));
+        _bannerHorz.Items.Add(Loc.T("Links"));
+        _bannerHorz.Items.Add(Loc.T("Mitte"));
+        _bannerHorz.Items.Add(Loc.T("Rechts"));
         _language.Items.Add("Deutsch");
         _language.Items.Add("English");
         _language.Items.Add("Italiano");
@@ -116,11 +134,9 @@ public sealed class SettingsWindow : Window
         {
             var r = rects[i];
             bool primary = r.Left == 0 && r.Top == 0;
-            _monitorChecks.Add(new CheckBox
-            {
-                Content = $"Monitor {i + 1} – {r.Width}×{r.Height} @ ({r.Left},{r.Top}){(primary ? "  " + Loc.T("[primär]") : "")}",
-                Margin = new Thickness(0, 2, 0, 2)
-            });
+            string label = $"Monitor {i + 1} – {r.Width}×{r.Height} @ ({r.Left},{r.Top}){(primary ? "  " + Loc.T("[primär]") : "")}";
+            _monitorChecks.Add(new CheckBox { Content = label, Margin = new Thickness(0, 2, 0, 2) });
+            _bannerMonitorChecks.Add(new CheckBox { Content = label, Margin = new Thickness(0, 2, 0, 2) });
         }
 
         foreach (var snd in SoundNotifier.GetAvailableSounds())
@@ -138,6 +154,8 @@ public sealed class SettingsWindow : Window
 
         var glowTest = TestButton(Loc.T("Glow testen"));
         glowTest.Click += (_, _) => { try { _onTestGlow(BuildSettings()); } catch { } };
+        var bannerTest = TestButton(Loc.T("Einblendung testen"));
+        bannerTest.Click += (_, _) => { try { _onTestBanner(BuildSettings()); } catch { } };
         var soundTest = TestButton(Loc.T("Ton testen"));
         soundTest.Click += (_, _) => SoundNotifier.Play(SelectedSoundPath(), ParseInt(_soundVolume.Text, 100, 0, 100), SelectedDeviceId());
 
@@ -181,6 +199,24 @@ public sealed class SettingsWindow : Window
         var glowInputs = new List<FrameworkElement> { _glowColor, _glowThickness, _glowDuration, _persistentBorderMode };
         glowInputs.AddRange(_monitorChecks);
         tabControl.Items.Add(MakeTab(Loc.T("Glow-Rand"), glowRows.ToArray(), glowInputs.ToArray()));
+
+        var bannerRows = new List<UIElement>
+        {
+            _bannerEnabled,
+            Row(Loc.T("Text ({Name} = Sprecher):"), _bannerText),
+            Row(Loc.T("Vertikale Position:"), _bannerVert),
+            Row(Loc.T("Horizontale Position:"), _bannerHorz),
+            Row(Loc.T("Schriftgröße:"), _bannerSize),
+            Row(Loc.T("Farbe (Hex, z. B. #FF3B30):"), _bannerColor),
+            Row(Loc.T("Anzeigedauer (ms):"), _bannerDuration),
+            Row(Loc.T("Deckkraft (%):"), _bannerOpacity),
+            new TextBlock { Text = Loc.T("Monitore für die Einblendung (nichts markiert = alle):"), Margin = new Thickness(0, 8, 0, 2) }
+        };
+        bannerRows.AddRange(_bannerMonitorChecks);
+        bannerRows.Add(bannerTest);
+        var bannerInputs = new List<FrameworkElement> { _bannerEnabled, _bannerText, _bannerVert, _bannerHorz, _bannerSize, _bannerColor, _bannerDuration, _bannerOpacity };
+        bannerInputs.AddRange(_bannerMonitorChecks);
+        tabControl.Items.Add(MakeTab(Loc.T("Einblendung"), bannerRows.ToArray(), bannerInputs.ToArray()));
 
         tabControl.Items.Add(MakeTab(Loc.T("Signalton"),
             new UIElement[]
@@ -304,6 +340,7 @@ public sealed class SettingsWindow : Window
         Heading(Loc.T("Funktionen"));
         Body(Loc.T("• Erkennt deine Namen/Begriffe im Teams-Live-Transkript (per UI Automation) – auch über mehrere parallele Calls hinweg."));
         Body(Loc.T("• Roter, konfigurierbarer Bildschirm-Glow bei Nennung; optional zusätzlich ein Signalton (Lautstärke und Ausgabegerät wählbar)."));
+        Body(Loc.T("• Einblendung, wer dich gerufen hat – Text, Position, Größe, Farbe, Dauer, Deckkraft und Monitore frei einstellbar."));
         Body(Loc.T("• Auf Wunsch automatisch Teams lauter stellen und Musik (z. B. Spotify) pausieren; per Shortcut oder Tray zurück in den Ruhe-Modus."));
         Body(Loc.T("• Ruhe-/Gesprächs-Modus mit globalen Tastenkürzeln, wählbarem Start-Modus und automatischer Rückkehr nach eigener Redepause."));
         Body(Loc.T("• Glow je Monitor wählbar; Erkennung sprachunabhängig; alles über diese Oberfläche einstellbar (kein fest hinterlegter Name)."));
@@ -368,6 +405,17 @@ public sealed class SettingsWindow : Window
         for (int i = 0; i < _monitorChecks.Count; i++)
             _monitorChecks[i].IsChecked = s.GlowMonitors.Count == 0 || s.GlowMonitors.Contains(i);
 
+        _bannerEnabled.IsChecked = s.BannerEnabled;
+        _bannerText.Text = s.BannerText;
+        _bannerVert.SelectedIndex = s.BannerVertical switch { BannerVertical.Center => 1, BannerVertical.Bottom => 2, _ => 0 };
+        _bannerHorz.SelectedIndex = s.BannerHorizontal switch { BannerHorizontal.Left => 0, BannerHorizontal.Right => 2, _ => 1 };
+        _bannerSize.Text = s.BannerFontSize.ToString(CultureInfo.InvariantCulture);
+        _bannerColor.Text = s.BannerColorHex;
+        _bannerDuration.Text = s.BannerDurationMs.ToString();
+        _bannerOpacity.Text = s.BannerOpacityPercent.ToString();
+        for (int i = 0; i < _bannerMonitorChecks.Count; i++)
+            _bannerMonitorChecks[i].IsChecked = s.BannerMonitors.Count == 0 || s.BannerMonitors.Contains(i);
+
         _soundEnabled.IsChecked = s.TriggerSoundEnabled;
         int soundIdx = _soundPaths.FindIndex(p => string.Equals(p, s.TriggerSoundFile, StringComparison.OrdinalIgnoreCase));
         if (soundIdx < 0) soundIdx = _soundPaths.FindIndex(p => p.EndsWith("Windows Notify.wav", StringComparison.OrdinalIgnoreCase));
@@ -429,6 +477,19 @@ public sealed class SettingsWindow : Window
         for (int i = 0; i < _monitorChecks.Count; i++)
             if (_monitorChecks[i].IsChecked == true) chosen.Add(i);
         s.GlowMonitors = chosen.Count == _monitorChecks.Count ? new List<int>() : chosen;
+
+        s.BannerEnabled = _bannerEnabled.IsChecked == true;
+        s.BannerText = _bannerText.Text.Trim();
+        s.BannerVertical = _bannerVert.SelectedIndex switch { 1 => BannerVertical.Center, 2 => BannerVertical.Bottom, _ => BannerVertical.Top };
+        s.BannerHorizontal = _bannerHorz.SelectedIndex switch { 0 => BannerHorizontal.Left, 2 => BannerHorizontal.Right, _ => BannerHorizontal.Center };
+        s.BannerFontSize = ParseDouble(_bannerSize.Text, s.BannerFontSize, 8, 200);
+        s.BannerColorHex = string.IsNullOrWhiteSpace(_bannerColor.Text) ? s.BannerColorHex : _bannerColor.Text.Trim();
+        s.BannerDurationMs = ParseInt(_bannerDuration.Text, s.BannerDurationMs, 500, 60000);
+        s.BannerOpacityPercent = ParseInt(_bannerOpacity.Text, s.BannerOpacityPercent, 5, 100);
+        var bannerChosen = new List<int>();
+        for (int i = 0; i < _bannerMonitorChecks.Count; i++)
+            if (_bannerMonitorChecks[i].IsChecked == true) bannerChosen.Add(i);
+        s.BannerMonitors = bannerChosen.Count == _bannerMonitorChecks.Count ? new List<int>() : bannerChosen;
 
         s.TriggerSoundEnabled = _soundEnabled.IsChecked == true;
         s.TriggerSoundFile = SelectedSoundPath();

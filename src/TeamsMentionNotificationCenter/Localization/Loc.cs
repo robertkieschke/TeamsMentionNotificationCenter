@@ -62,6 +62,7 @@ public static class Loc
         ["Erkennung"] = ("Detection", "Rilevamento"),
         ["Ton & Musik"] = ("Sound & music", "Audio e musica"),
         ["Glow-Rand"] = ("Glow border", "Bordo luminoso"),
+        ["Einblendung"] = ("Banner", "Banner"),
         ["Signalton"] = ("Alert sound", "Suono di avviso"),
         ["Tastenkürzel"] = ("Shortcuts", "Scorciatoie"),
         ["Sonstiges"] = ("Other", "Altro"),
@@ -97,6 +98,25 @@ public static class Loc
         ["Nie"] = ("Never", "Mai"),
         ["Nur bei Namensnennung (Trigger)"] = ("Only on a mention (trigger)", "Solo quando il nome viene detto"),
         ["Immer im Gesprächs-Modus"] = ("Always in conversation mode", "Sempre in conversazione"),
+
+        // --- Einblendung ---
+        ["Bei Erkennung einblenden, wer dich gerufen hat"] =
+            ("Show who called you when your name is detected", "Mostra chi ti ha chiamato quando viene rilevato il nome"),
+        ["Text ({Name} = Sprecher):"] = ("Text ({Name} = speaker):", "Testo ({Name} = chi parla):"),
+        ["Vertikale Position:"] = ("Vertical position:", "Posizione verticale:"),
+        ["Horizontale Position:"] = ("Horizontal position:", "Posizione orizzontale:"),
+        ["Oben"] = ("Top", "In alto"),
+        ["Mitte"] = ("Center", "Al centro"),
+        ["Unten"] = ("Bottom", "In basso"),
+        ["Links"] = ("Left", "A sinistra"),
+        ["Rechts"] = ("Right", "A destra"),
+        ["Schriftgröße:"] = ("Font size:", "Dimensione carattere:"),
+        ["Anzeigedauer (ms):"] = ("Display time (ms):", "Durata visualizzazione (ms):"),
+        ["Deckkraft (%):"] = ("Opacity (%):", "Opacità (%):"),
+        ["Monitore für die Einblendung (nichts markiert = alle):"] =
+            ("Monitors for the banner (none checked = all):", "Monitor per il banner (nessuno = tutti):"),
+        ["Einblendung testen"] = ("Test banner", "Prova banner"),
+        ["Jemand"] = ("Someone", "Qualcuno"),
 
         // --- Signalton ---
         ["Bei Erkennung zusätzlich einen Ton abspielen"] = ("Also play a sound on detection", "Riproduci anche un suono al rilevamento"),
@@ -149,6 +169,9 @@ public static class Loc
         ["• Roter, konfigurierbarer Bildschirm-Glow bei Nennung; optional zusätzlich ein Signalton (Lautstärke und Ausgabegerät wählbar)."] =
             ("• Configurable screen glow on a mention; optionally an alert sound too (volume and output device selectable).",
              "• Bordo dello schermo configurabile alla menzione; opzionalmente anche un suono di avviso (volume e dispositivo selezionabili)."),
+        ["• Einblendung, wer dich gerufen hat – Text, Position, Größe, Farbe, Dauer, Deckkraft und Monitore frei einstellbar."] =
+            ("• On-screen banner showing who called you – text, position, size, colour, duration, opacity and monitors fully configurable.",
+             "• Banner a schermo che mostra chi ti ha chiamato – testo, posizione, dimensione, colore, durata, opacità e monitor configurabili."),
         ["• Auf Wunsch automatisch Teams lauter stellen und Musik (z. B. Spotify) pausieren; per Shortcut oder Tray zurück in den Ruhe-Modus."] =
             ("• Optionally raise Teams volume and pause music (e.g. Spotify) automatically; back to quiet mode via shortcut or tray.",
              "• Se vuoi, alza automaticamente il volume di Teams e mette in pausa la musica (es. Spotify); ritorno al silenzioso tramite scorciatoia o tray."),

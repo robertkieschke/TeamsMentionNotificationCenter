@@ -23,6 +23,7 @@ public sealed class AppController : IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly NameMatcher _matcher;
     private readonly GlowOverlay _glow;
+    private readonly CallerBanner _banner;
     private readonly AudioController _audio;
     private ITranscriptSource? _transcript;
     private TrayIconManager? _tray;
@@ -41,6 +42,7 @@ public sealed class AppController : IDisposable
         _dispatcher = dispatcher;
         _matcher = new NameMatcher(settings);
         _glow = new GlowOverlay(settings);
+        _banner = new CallerBanner(settings);
         _audio = new AudioController(settings);
     }
 
@@ -96,7 +98,8 @@ public sealed class AppController : IDisposable
         if (Mode == AppMode.Conversation) return;
         if (_matcher.TryMatch(e.Line.Speaker, e.Line.Text, out var word))
         {
-            _dispatcher.BeginInvoke(() => OnTriggered(word));
+            var speaker = e.Line.Speaker;
+            _dispatcher.BeginInvoke(() => OnTriggered(word, speaker));
         }
     }
 
@@ -116,7 +119,7 @@ public sealed class AppController : IDisposable
         return shorter.Length > 0 && shorter.All(longer.Contains) && shorter.Any(t => t.Length >= 2);
     }
 
-    private void OnTriggered(string word)
+    private void OnTriggered(string word, string speaker)
     {
         // Autoritative Prüfung auf dem UI-Thread (zwischen Erkennung und Verarbeitung kann der
         // Modus gewechselt haben): im Gesprächs-Modus wird grundsätzlich nicht erneut alarmiert.
@@ -131,6 +134,8 @@ public sealed class AppController : IDisposable
         if (_settings.AutoEnterConversationOnTrigger)
             SetMode(AppMode.Conversation, fromTrigger: true);
         _glow.Flash();
+        if (_settings.BannerEnabled)
+            _banner.Show(speaker);
         if (_settings.TriggerSoundEnabled)
             SoundNotifier.Play(_settings.TriggerSoundFile, _settings.TriggerSoundVolume, _settings.TriggerSoundDeviceId);
         _tray?.UpdateStatus(Loc.Tf("Name erkannt: {0}", word), true);
@@ -234,7 +239,8 @@ public sealed class AppController : IDisposable
                     OpenSettingsWindow();
                 }
             },
-            onTestGlow: preview => _glow.PreviewWith(preview));
+            onTestGlow: preview => _glow.PreviewWith(preview),
+            onTestBanner: preview => _banner.PreviewWith(preview));
         _settingsWindow.Closed += (_, _) =>
         {
             _settingsWindow = null;
@@ -276,6 +282,7 @@ public sealed class AppController : IDisposable
         _autoReturnTimer?.Stop();
         _hotkeys?.Dispose();
         _glow.Dispose();
+        _banner.Dispose();
         _tray?.Dispose();
         _audio.Dispose();
     }

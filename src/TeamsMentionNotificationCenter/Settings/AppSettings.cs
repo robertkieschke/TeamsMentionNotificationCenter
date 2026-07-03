@@ -33,6 +33,12 @@ public enum PersistentBorderMode
     Always
 }
 
+/// <summary>Vertikale Position der Einblendung auf dem Bildschirm.</summary>
+public enum BannerVertical { Top, Center, Bottom }
+
+/// <summary>Horizontale Position der Einblendung auf dem Bildschirm.</summary>
+public enum BannerHorizontal { Left, Center, Right }
+
 /// <summary>
 /// Alle konfigurierbaren Einstellungen. Wird als JSON unter
 /// %APPDATA%\TeamsMentionNotificationCenter\settings.json gespeichert und ist vollständig über die
@@ -81,6 +87,24 @@ public sealed class AppSettings
     public List<int> GlowMonitors { get; set; } = new();
     /// <summary>Wann der dezente Dauer-Rand im Gesprächs-Modus gezeigt wird.</summary>
     public PersistentBorderMode PersistentBorder { get; set; } = PersistentBorderMode.TriggerOnly;
+
+    // --- Einblendung „Wer hat mich gerufen?" ---
+    /// <summary>Bei Erkennung eine Text-Einblendung mit dem Namen des Sprechers anzeigen.</summary>
+    public bool BannerEnabled { get; set; } = true;
+    /// <summary>Anzeigetext; {Name} wird durch den Sprecher aus dem Transkript ersetzt.</summary>
+    public string BannerText { get; set; } = "{Name} hat dich gerufen";
+    public BannerVertical BannerVertical { get; set; } = BannerVertical.Top;
+    public BannerHorizontal BannerHorizontal { get; set; } = BannerHorizontal.Center;
+    /// <summary>Schriftgröße der Einblendung.</summary>
+    public double BannerFontSize { get; set; } = 32;
+    /// <summary>Textfarbe der Einblendung.</summary>
+    public string BannerColorHex { get; set; } = "#FF3B30";
+    /// <summary>Anzeigedauer (ms).</summary>
+    public int BannerDurationMs { get; set; } = 4000;
+    /// <summary>Deckkraft der Einblendung in Prozent (0–100).</summary>
+    public int BannerOpacityPercent { get; set; } = 90;
+    /// <summary>Monitore für die Einblendung (0-basierte Indizes; leer = alle).</summary>
+    public List<int> BannerMonitors { get; set; } = new();
 
     // --- Signalton bei Erkennung ---
     public bool TriggerSoundEnabled { get; set; } = false;
@@ -196,6 +220,15 @@ public sealed class AppSettings
         GlowThickness = s.GlowThickness;
         GlowMonitors = s.GlowMonitors;
         PersistentBorder = s.PersistentBorder;
+        BannerEnabled = s.BannerEnabled;
+        BannerText = s.BannerText;
+        BannerVertical = s.BannerVertical;
+        BannerHorizontal = s.BannerHorizontal;
+        BannerFontSize = s.BannerFontSize;
+        BannerColorHex = s.BannerColorHex;
+        BannerDurationMs = s.BannerDurationMs;
+        BannerOpacityPercent = s.BannerOpacityPercent;
+        BannerMonitors = s.BannerMonitors;
         HotkeyToggle = s.HotkeyToggle;
         HotkeyQuiet = s.HotkeyQuiet;
         HotkeyConversation = s.HotkeyConversation;

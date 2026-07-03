@@ -14,6 +14,9 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
   auch über mehrere bzw. gehaltene Calls hinweg).
 - **Roter Glow** rund um den Bildschirmrand bei einem Treffer – Farbe, Dauer, Dicke, Monitor(e) und
   optionaler Dauer-Rand einstellbar, mit Live-Vorschau.
+- **Einblendung „Wer hat mich gerufen?"** – zeigt bei einem Treffer den Sprecher an
+  (Text mit `{Name}`-Platzhalter, Position 3×3, Schriftgröße, Farbe, Dauer, Deckkraft
+  und Monitore einstellbar, mit Live-Vorschau).
 - **Ton- & Musiksteuerung:** Teams pro Modus laut/leise/stumm (NAudio) und Musik (z. B. Spotify)
   automatisch pausieren/fortsetzen (Windows-Mediensteuerung / SMTC).
 - **Zwei Modi:** *Ruhe* (Teams leise, Musik läuft) ↔ *Gespräch* (Teams laut, Musik pausiert).
@@ -86,6 +89,9 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Wichtigste Felder
 | `GlowColorHex` / `GlowDurationMs` / `GlowThickness` | Aussehen des Rand-Glows. |
 | `GlowMonitors` | Zu beleuchtende Monitore (leer = alle). |
 | `PersistentBorder` | Dezenter Dauer-Rand im Gesprächs-Modus: `Never` / `TriggerOnly` / `Always`. |
+| `BannerEnabled` / `BannerText` | Einblendung „Wer hat mich gerufen?" an/aus; Text mit `{Name}`-Platzhalter. |
+| `BannerVertical` / `BannerHorizontal` | Position: `Top`/`Center`/`Bottom` × `Left`/`Center`/`Right`. |
+| `BannerFontSize` / `BannerColorHex` / `BannerDurationMs` / `BannerOpacityPercent` / `BannerMonitors` | Aussehen der Einblendung (Monitore leer = alle). |
 | `QuietBehavior` / `QuietLevelPercent` / `ConversationLevelPercent` | Teams-Ton je Modus (leiser oder stumm). |
 | `MusicAppHint` | Medien-App für Pause/Resume (z. B. `Spotify`). |
 | `AutoEnterConversationOnTrigger` / `RaiseTeamsOnTrigger` / `PauseMusicOnTrigger` | Auto-Aktionen bei Treffer. |
