@@ -18,8 +18,8 @@
     <Company>inno-focus digital gmbh</Company>
     <Authors>Robert H. Kieschke</Authors>
     <Copyright>© 2026 inno-focus digital gmbh</Copyright>
-    <Version>1.1.0</Version>
-    <FileVersion>1.1.0.0</FileVersion>
+    <Version>1.2.0</Version>
+    <FileVersion>1.2.0.0</FileVersion>
     <!-- Verteilung: dotnet publish -p:PublishProfile=win-x64  (Single-File, self-contained). -->
   </PropertyGroup>
 
