@@ -58,6 +58,10 @@ public static class Loc
         ["Verworfen"] = ("Discarded", "Annullato"),
         ["Standardwerte geladen – bitte übernehmen"] = ("Defaults loaded – please apply", "Predefiniti caricati – applica"),
 
+        ["Die Anwendung läuft bereits – du findest sie als Symbol im Infobereich der Taskleiste (Tray). Diese zusätzliche Instanz wird jetzt beendet."] =
+            ("The application is already running – look for its icon in the taskbar notification area (tray). This additional instance will now close.",
+             "L'applicazione è già in esecuzione – trovi la sua icona nell'area di notifica della barra delle applicazioni (tray). Questa istanza aggiuntiva verrà ora chiusa."),
+
         // --- Tabs ---
         ["Erkennung"] = ("Detection", "Rilevamento"),
         ["Ton & Musik"] = ("Sound & music", "Audio e musica"),
