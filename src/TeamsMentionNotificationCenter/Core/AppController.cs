@@ -90,8 +90,10 @@ public sealed class AppController : IDisposable
         }
 
         if (!_settings.DetectionEnabled) return;
-        // Im manuell gewählten Gesprächs-Modus (optional) nicht auslösen – man ist dort bewusst im Gespräch.
-        if (IsManualConversationProtected()) return;
+        // Bereits im Gesprächs-Modus (manuell ODER durch Trigger): kein erneuter Alarm – man ist ja im
+        // Gespräch. Schon vor dem Matcher abbrechen, damit der Cooldown nicht sinnlos scharfgestellt wird
+        // und eine Nennung kurz nach der Rückkehr in den Ruhe-Modus nicht verschluckt würde.
+        if (Mode == AppMode.Conversation) return;
         if (_matcher.TryMatch(e.Line.Speaker, e.Line.Text, out var word))
         {
             _dispatcher.BeginInvoke(() => OnTriggered(word));
@@ -116,6 +118,13 @@ public sealed class AppController : IDisposable
 
     private void OnTriggered(string word)
     {
+        // Autoritative Prüfung auf dem UI-Thread (zwischen Erkennung und Verarbeitung kann der
+        // Modus gewechselt haben): im Gesprächs-Modus wird grundsätzlich nicht erneut alarmiert.
+        if (Mode == AppMode.Conversation)
+        {
+            Logger.Log($"TRIGGER unterdrückt (bereits im Gespräch)  Wort='{word}'");
+            return;
+        }
         Logger.Log($"TRIGGER  Wort='{word}'  Modus={Mode}");
         // Modus ZUERST wechseln (setzt ggf. den Dauer-Rand), Flash ZULETZT – sonst
         // überschreibt die Persistenz-Animation (Opacity->0) sofort das Aufleuchten.
@@ -166,18 +175,11 @@ public sealed class AppController : IDisposable
         _ => false
     };
 
-    /// <summary>Manuell (nicht durch Trigger) aktivierter Gesprächs-Modus mit aktivierter Schutz-Option:
-    /// dann keine Namens-Erkennung (kein Glow) und keine automatische Rückkehr in den Ruhe-Modus.</summary>
-    private bool IsManualConversationProtected() =>
-        _settings.DisableDetectionInManualConversation && Mode == AppMode.Conversation && !_conversationFromTrigger;
-
     public void ToggleMode() => SetMode(Mode == AppMode.Conversation ? AppMode.Quiet : AppMode.Conversation);
 
     private void CheckAutoReturn()
     {
         if (!_settings.AutoReturnToQuietEnabled || Mode != AppMode.Conversation) return;
-        // Geschützter manueller Gesprächs-Modus: keine Auto-Rückkehr (man verlässt ihn selbst).
-        if (IsManualConversationProtected()) return;
         // Manuell aktivierten Gesprächs-Modus nur zurückholen, wenn ausdrücklich erlaubt.
         if (!_conversationFromTrigger && !_settings.AutoReturnAlsoWhenManual) return;
         var last = Volatile.Read(ref _lastOwnSpeechTicks);

@@ -18,6 +18,7 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
   automatisch pausieren/fortsetzen (Windows-Mediensteuerung / SMTC).
 - **Zwei Modi:** *Ruhe* (Teams leise, Musik läuft) ↔ *Gespräch* (Teams laut, Musik pausiert).
   Automatischer Wechsel bei Treffer, optionale Auto-Rückkehr nach eigener Sprechpause.
+  Im Gesprächs-Modus pausiert die Erkennung – erneute Nennungen lösen keinen neuen Alarm aus.
 - **Globale Hotkeys:** Modus umschalten, Ruhe, Gespräch, Erkennung an/aus – alle frei belegbar.
 - **Optionaler Signalton** bei Erkennung (eigene WAV, Lautstärke und Ausgabegerät wählbar).
 - **System-Tray-Icon** mit Statusanzeige (grün = Gespräch, rot = Ruhe, grau = Erkennung aus) und Kontextmenü.

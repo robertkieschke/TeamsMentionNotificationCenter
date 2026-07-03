@@ -127,9 +127,6 @@ public static class Loc
         ["Zeit ohne eigene Wortmeldung (Sekunden):"] = ("Time without me speaking (seconds):", "Tempo senza che io parli (secondi):"),
         ["Auto-Rückkehr auch bei manueller Aktivierung (Shortcut/Menü)"] =
             ("Auto-return also on manual activation (shortcut/menu)", "Ritorno automatico anche con attivazione manuale (scorciatoia/menu)"),
-        ["Im manuellen Gesprächs-Modus keine Erkennung und keine automatische Rückkehr"] =
-            ("No detection or auto-return while in manual conversation mode",
-             "Nessun rilevamento né ritorno automatico in modalità conversazione manuale"),
         ["Mit Windows starten"] = ("Start with Windows", "Avvia con Windows"),
         ["Debug-Log schreiben (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)"] =
             ("Write debug log (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)", "Scrivi log di debug (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)"),
