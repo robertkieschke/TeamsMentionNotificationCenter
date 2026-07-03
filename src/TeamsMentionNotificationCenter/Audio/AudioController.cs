@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using NAudio.CoreAudioApi;
+using TeamsMentionNotificationCenter.Core;
 using TeamsMentionNotificationCenter.Settings;
 using Windows.Media.Control;
 
@@ -52,23 +53,49 @@ public sealed class AudioController : IDisposable
     }
 
     // --- Teams-Ton (pro-App) ---------------------------------------------
-    private static void SetTeamsVolume(float? level, bool mute)
+    private void SetTeamsVolume(float? level, bool mute)
     {
         try
         {
             var pids = Process.GetProcessesByName("ms-teams").Select(p => (uint)p.Id).ToHashSet();
             if (pids.Count == 0) return;
 
+            // WICHTIG: über ALLE aktiven Wiedergabegeräte gehen, nicht nur das Standardgerät.
+            // Headsets wie das Razer Nari melden mehrere Endpunkte („Game" + „Chat"), und Teams gibt
+            // als Kommunikations-App i. d. R. auf dem Chat-Endpunkt aus – seine Audio-Session hängt
+            // dann an einem anderen Gerät als dem Multimedia-Standard.
+            // AUSNAHME: vom Nutzer ausgeschlossene Geräte (z. B. das Gerät des Teams-„Zweiten
+            // Rufsignals") werden NIE angefasst – so bleibt das Klingeln zusätzlicher Anrufe laut.
+            var excluded = _settings.AudioExcludedDeviceIds;
+            int hits = 0, deviceCount = 0, skipped = 0;
             using var enumerator = new MMDeviceEnumerator();
-            using var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            var sessions = device.AudioSessionManager.Sessions;
-            for (int i = 0; i < sessions.Count; i++)
+            foreach (var device in enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
             {
-                var s = sessions[i];
-                if (!pids.Contains(s.GetProcessID)) continue; // alle ms-teams-Sessions treffen
-                s.SimpleAudioVolume.Mute = mute;
-                if (level.HasValue) s.SimpleAudioVolume.Volume = level.Value;
+                using (device)
+                {
+                    try
+                    {
+                        if (excluded.Contains(device.ID, StringComparer.OrdinalIgnoreCase)) { skipped++; continue; }
+                        deviceCount++;
+                        var sessions = device.AudioSessionManager.Sessions;
+                        for (int i = 0; i < sessions.Count; i++)
+                        {
+                            var s = sessions[i];
+                            try
+                            {
+                                if (!pids.Contains(s.GetProcessID)) continue; // alle ms-teams-Sessions treffen
+                                s.SimpleAudioVolume.Mute = mute;
+                                if (level.HasValue) s.SimpleAudioVolume.Volume = level.Value;
+                                hits++;
+                            }
+                            catch { /* einzelne (abgelaufene) Session ignorieren */ }
+                        }
+                    }
+                    catch { /* defekten/virtuellen Endpunkt ignorieren, weiter mit dem nächsten */ }
+                }
             }
+            Logger.Log($"Teams-Ton: {hits} Session(s) auf {deviceCount} Wiedergabegerät(en) angepasst, " +
+                       $"{skipped} Gerät(e) ausgeschlossen (mute={mute}, level={(level.HasValue ? (int)(level.Value * 100) + "%" : "-")})");
         }
         catch { /* kein Ausgabegerät / keine Session -> ignorieren */ }
     }

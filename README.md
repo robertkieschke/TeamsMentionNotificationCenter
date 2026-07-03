@@ -22,6 +22,8 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
 - **Zwei Modi:** *Ruhe* (Teams leise, Musik läuft) ↔ *Gespräch* (Teams laut, Musik pausiert).
   Automatischer Wechsel bei Treffer, optionale Auto-Rückkehr nach eigener Sprechpause.
   Im Gesprächs-Modus pausiert die Erkennung – erneute Nennungen lösen keinen neuen Alarm aus.
+- **Eingehende Anrufe:** Klingelt ein zusätzlicher Anruf (Teams-Anruf-Popup), wechselt die App
+  automatisch in den Gesprächs-Modus – Klingeln und Anruf sind sofort laut, die Musik pausiert (abschaltbar).
 - **Globale Hotkeys:** Modus umschalten, Ruhe, Gespräch, Erkennung an/aus – alle frei belegbar.
 - **Optionaler Signalton** bei Erkennung (eigene WAV, Lautstärke und Ausgabegerät wählbar).
 - **System-Tray-Icon** mit Statusanzeige (grün = Gespräch, rot = Ruhe, grau = Erkennung aus) und Kontextmenü.
@@ -94,7 +96,9 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Wichtigste Felder
 | `BannerFontSize` / `BannerColorHex` / `BannerDurationMs` / `BannerOpacityPercent` / `BannerMonitors` | Aussehen der Einblendung (Monitore leer = alle). |
 | `QuietBehavior` / `QuietLevelPercent` / `ConversationLevelPercent` | Teams-Ton je Modus (leiser oder stumm). |
 | `MusicAppHint` | Medien-App für Pause/Resume (z. B. `Spotify`). |
+| `AudioExcludedDeviceIds` | Wiedergabegeräte, die nie automatisch angepasst werden – z. B. das Gerät des Teams-„Zweiten Rufsignals", damit das Klingeln zusätzlicher Anrufe laut bleibt. |
 | `AutoEnterConversationOnTrigger` / `RaiseTeamsOnTrigger` / `PauseMusicOnTrigger` | Auto-Aktionen bei Treffer. |
+| `EnterConversationOnIncomingCall` | Bei eingehendem Anruf (Klingel-Popup) automatisch in den Gesprächs-Modus. |
 | `AutoReturnToQuietEnabled` / `AutoReturnAfterSeconds` / `AutoReturnAlsoWhenManual` | Auto-Rückkehr in den Ruhe-Modus nach eigener Sprechpause. |
 | `TriggerSoundEnabled` / `TriggerSoundFile` / `TriggerSoundVolume` / `TriggerSoundDeviceId` | Optionaler Signalton bei Erkennung. |
 | `HotkeyToggle` / `HotkeyQuiet` / `HotkeyConversation` / `HotkeyToggleDetection` | Globale Tastenkürzel. |

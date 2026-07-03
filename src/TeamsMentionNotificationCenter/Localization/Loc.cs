@@ -99,6 +99,17 @@ public static class Loc
         ["Nur bei Namensnennung (Trigger)"] = ("Only on a mention (trigger)", "Solo quando il nome viene detto"),
         ["Immer im Gesprächs-Modus"] = ("Always in conversation mode", "Sempre in conversazione"),
 
+        ["Bei eingehendem Anruf automatisch in den Gesprächs-Modus (Klingeln wird laut)"] =
+            ("Automatically enter conversation mode on an incoming call (ringing gets loud)",
+             "Passa automaticamente alla modalità conversazione quando arriva una chiamata (lo squillo diventa forte)"),
+        ["Eingehender Anruf – Gesprächs-Modus aktiviert"] =
+            ("Incoming call – conversation mode activated", "Chiamata in arrivo – modalità conversazione attivata"),
+        ["Diese Wiedergabegeräte nie automatisch anpassen:"] =
+            ("Never adjust these playback devices automatically:", "Non regolare mai automaticamente questi dispositivi di riproduzione:"),
+        ["Tipp: In Teams ein 'Zweites Rufsignal' auf ein hier ausgeschlossenes Gerät legen (z. B. Lautsprecher) – dann bleibt das Klingeln zusätzlicher Anrufe immer laut, während der Call leise wird."] =
+            ("Tip: In Teams, set a 'secondary ringer' to a device excluded here (e.g. speakers) – the ringing of additional incoming calls then always stays loud while the call itself gets quiet.",
+             "Suggerimento: in Teams imposta una 'suoneria secondaria' su un dispositivo escluso qui (es. altoparlanti) – lo squillo delle chiamate in arrivo resta sempre forte mentre la chiamata diventa silenziosa."),
+
         // --- Einblendung ---
         ["Bei Erkennung einblenden, wer dich gerufen hat"] =
             ("Show who called you when your name is detected", "Mostra chi ti ha chiamato quando viene rilevato il nome"),

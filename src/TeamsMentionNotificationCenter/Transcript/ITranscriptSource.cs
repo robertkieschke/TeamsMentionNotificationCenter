@@ -35,6 +35,9 @@ public interface ITranscriptSource : IDisposable
     event EventHandler<CaptionEventArgs>? CaptionReceived;
     event EventHandler<TranscriptStatusEventArgs>? StatusChanged;
 
+    /// <summary>Feuert bei Sichtbarkeits-Wechsel des Teams-Anruf-Popups (true = eingehender Anruf klingelt).</summary>
+    event EventHandler<bool>? IncomingCallVisibleChanged;
+
     void Start();
     void Stop();
 }

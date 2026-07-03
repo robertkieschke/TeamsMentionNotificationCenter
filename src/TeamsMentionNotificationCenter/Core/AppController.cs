@@ -71,6 +71,7 @@ public sealed class AppController : IDisposable
         _transcript = new UiaTranscriptSource(_settings);
         _transcript.CaptionReceived += OnCaptionReceived;
         _transcript.StatusChanged += OnTranscriptStatusChanged;
+        _transcript.IncomingCallVisibleChanged += OnIncomingCallChanged;
         _transcript.Start();
 
         // Auto-Rückkehr in den Ruhe-Modus, wenn im Gespräch der Name X s nicht mehr fällt.
@@ -145,6 +146,19 @@ public sealed class AppController : IDisposable
     {
         Logger.Log("TEST-GLOW ausgelöst");
         _glow.Flash();
+    }
+
+    private void OnIncomingCallChanged(object? sender, bool visible)
+    {
+        if (!visible) return; // nur auf das ERSCHEINEN des Anruf-Popups reagieren
+        if (!_settings.DetectionEnabled || !_settings.EnterConversationOnIncomingCall) return;
+        _dispatcher.BeginInvoke(() =>
+        {
+            if (Mode == AppMode.Conversation) return;
+            Logger.Log("Eingehender Anruf -> Gesprächs-Modus (Klingeln wird laut)");
+            SetMode(AppMode.Conversation, fromTrigger: true);
+            _tray?.UpdateStatus(Loc.T("Eingehender Anruf – Gesprächs-Modus aktiviert"), true);
+        });
     }
 
     private void OnTranscriptStatusChanged(object? sender, TranscriptStatusEventArgs e)
@@ -277,6 +291,7 @@ public sealed class AppController : IDisposable
         {
             _transcript.CaptionReceived -= OnCaptionReceived;
             _transcript.StatusChanged -= OnTranscriptStatusChanged;
+            _transcript.IncomingCallVisibleChanged -= OnIncomingCallChanged;
             _transcript.Dispose();
         }
         _autoReturnTimer?.Stop();

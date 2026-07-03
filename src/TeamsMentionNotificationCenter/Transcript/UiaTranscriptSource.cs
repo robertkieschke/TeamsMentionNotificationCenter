@@ -4,6 +4,7 @@ using System.Text;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
+using TeamsMentionNotificationCenter.Core;
 using TeamsMentionNotificationCenter.Localization;
 using TeamsMentionNotificationCenter.Settings;
 
@@ -35,11 +36,14 @@ public sealed class UiaTranscriptSource : ITranscriptSource
     private Dictionary<string, int> _prevCounts = new(StringComparer.Ordinal); // Zeilen-Häufigkeit letzter Poll
     private bool _primedOnce;                              // Startbestand einmalig ignorieren
     private readonly HashSet<IntPtr> _activated = new();  // Fenster, deren A11y bereits aktiviert wurde
+    private readonly HashSet<IntPtr> _loggedCallCandidates = new(); // kleine Fenster, deren Buttons schon geloggt wurden
+    private bool _lastCallVisible;
     private int _pollTick;
     private bool _lastAvailable;
 
     public event EventHandler<CaptionEventArgs>? CaptionReceived;
     public event EventHandler<TranscriptStatusEventArgs>? StatusChanged;
+    public event EventHandler<bool>? IncomingCallVisibleChanged;
 
     public UiaTranscriptSource(AppSettings settings) => _settings = settings;
 
@@ -87,13 +91,16 @@ public sealed class UiaTranscriptSource : ITranscriptSource
     private void PollOnce(UIA3Automation automation)
     {
         var teamsPids = Process.GetProcessesByName("ms-teams").Select(p => p.Id).ToHashSet();
-        if (teamsPids.Count == 0) { SetAvailable(false, Loc.T("Teams läuft nicht.")); return; }
+        if (teamsPids.Count == 0) { SetCallVisible(false); SetAvailable(false, Loc.T("Teams läuft nicht.")); return; }
 
         var all = Safe(() => automation.GetDesktop().FindAllChildren()) ?? Array.Empty<AutomationElement>();
         var teamsWindows = all
             .Where(e => teamsPids.Contains(Safe(() => e.Properties.ProcessId.ValueOrDefault)))
             .ToList();
-        if (teamsWindows.Count == 0) { SetAvailable(false, Loc.T("Kein Teams-Fenster gefunden.")); return; }
+        if (teamsWindows.Count == 0) { SetCallVisible(false); SetAvailable(false, Loc.T("Kein Teams-Fenster gefunden.")); return; }
+
+        // Eingehenden Anruf erkennen (kleines Popup mit Annehmen-/Ablehnen-Buttons).
+        DetectIncomingCall(teamsWindows);
 
         // ALLE Teams-Fenster außer dem Chat-Hub prüfen – deckt ausgekoppelte Untertitel-Fenster UND
         // In-Meeting-Untertitel ab, auch bei mehreren Calls gleichzeitig (egal ob ausgekoppelt).
@@ -191,6 +198,88 @@ public sealed class UiaTranscriptSource : ITranscriptSource
     {
         name = (name ?? "").ToLowerInvariant().TrimStart();
         return name.StartsWith("chat ") || name.StartsWith("chat|") || name == "chat";
+    }
+
+    // --- Eingehenden Anruf erkennen ---------------------------------------
+    // Das Anruf-Popup von Teams ist ein kleines Always-on-top-Fenster mit Annehmen-/Ablehnen-
+    // Buttons. Es gibt keine offizielle API – erkannt wird ein KLEINES ms-teams-Fenster, dessen
+    // UIA-Baum einen Button mit entsprechender (lokalisierter) Beschriftung enthält.
+    private static readonly string[] CallButtonKeywords =
+    {
+        "annehmen", "ablehnen",                        // DE
+        "accept", "decline", "reject",                 // EN
+        "accetta", "rifiuta",                          // IT
+        "accepter", "refuser", "décliner",             // FR
+        "aceptar", "rechazar",                         // ES
+        "aceitar", "recusar",                          // PT
+        "accepteren", "weigeren",                      // NL
+        "odbierz", "odrzuć",                           // PL
+        "応答", "拒否", "接听", "拒绝"                    // JA/ZH
+    };
+
+    private void DetectIncomingCall(List<AutomationElement> teamsWindows)
+    {
+        if (!_settings.EnterConversationOnIncomingCall) { SetCallVisible(false); return; }
+
+        bool visible = false;
+        foreach (var w in teamsWindows)
+        {
+            if (IsIncomingCallToast(w)) { visible = true; break; }
+        }
+        SetCallVisible(visible);
+    }
+
+    private bool IsIncomingCallToast(AutomationElement w)
+    {
+        // Nur kleine, sichtbare Fenster genauer ansehen (Meeting-/Hauptfenster sind groß;
+        // minimierte Fenster liegen bei ca. -32000).
+        var rect = Safe(() => w.Properties.BoundingRectangle.ValueOrDefault);
+        if (rect.Width < 150 || rect.Height < 60 || rect.Width > 700 || rect.Height > 520) return false;
+        if (rect.Left < -20000 || rect.Top < -20000) return false;
+
+        var hwnd = Safe(() => w.Properties.NativeWindowHandle.ValueOrDefault);
+        if (hwnd != IntPtr.Zero && _activated.Add(hwnd)) ActivateAccessibility(hwnd);
+
+        var buttons = new List<string>();
+        CollectButtonNames(w, buttons, 0, 25, new[] { 0 }, 400, Stopwatch.StartNew(), 800);
+        bool hit = buttons.Any(b =>
+        {
+            var lower = b.ToLowerInvariant();
+            return CallButtonKeywords.Any(kw => lower.Contains(kw));
+        });
+
+        // Zur Ferndiagnose die Button-Beschriftungen (UI-Labels, kein Gesprächsinhalt) einmal
+        // pro Fenster ins Debug-Log schreiben.
+        if (hwnd != IntPtr.Zero && _loggedCallCandidates.Add(hwnd))
+            Logger.Log($"Kleines Teams-Fenster {rect.Width}×{rect.Height}, Buttons: [{string.Join(" | ", buttons.Take(8))}]{(hit ? " -> ANRUF erkannt" : "")}");
+        if (_loggedCallCandidates.Count > 200) _loggedCallCandidates.Clear();
+
+        return hit;
+    }
+
+    private void SetCallVisible(bool visible)
+    {
+        if (visible == _lastCallVisible) return;
+        _lastCallVisible = visible;
+        Logger.Log(visible ? "Anruf-Popup sichtbar (eingehender Anruf)" : "Anruf-Popup nicht mehr sichtbar");
+        IncomingCallVisibleChanged?.Invoke(this, visible);
+    }
+
+    private static void CollectButtonNames(AutomationElement el, List<string> outList,
+        int depth, int maxDepth, int[] count, int maxCount, Stopwatch sw, int maxMs)
+    {
+        if (depth > maxDepth || count[0] >= maxCount || sw.ElapsedMilliseconds > maxMs) return;
+        count[0]++;
+        if (Safe(() => el.Properties.ControlType.ValueOrDefault) == ControlType.Button)
+        {
+            var name = Safe(() => el.Properties.Name.ValueOrDefault) ?? "";
+            if (!string.IsNullOrWhiteSpace(name)) outList.Add(name.Trim());
+        }
+        AutomationElement[] children;
+        try { children = el.FindAllChildren(); }
+        catch { return; }
+        foreach (var c in children)
+            CollectButtonNames(c, outList, depth + 1, maxDepth, count, maxCount, sw, maxMs);
     }
 
     // --- Caption-Gruppen einsammeln --------------------------------------

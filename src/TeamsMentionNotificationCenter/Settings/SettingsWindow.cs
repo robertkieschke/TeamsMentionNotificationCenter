@@ -35,6 +35,9 @@ public sealed class SettingsWindow : Window
     private readonly CheckBox _manageTeams = new() { Content = Loc.T("Teams-Ton automatisch steuern (laut/leise)") };
     private readonly CheckBox _manageMusic = new() { Content = Loc.T("Musik automatisch steuern (Pause/Fortsetzen)") };
     private readonly CheckBox _autoConv = new() { Content = Loc.T("Bei Namensnennung automatisch in den Gesprächs-Modus") };
+    private readonly CheckBox _convOnCall = new() { Content = Loc.T("Bei eingehendem Anruf automatisch in den Gesprächs-Modus (Klingeln wird laut)") };
+    private readonly List<CheckBox> _audioExcludeChecks = new();
+    private readonly List<string> _audioExcludeIds = new();
 
     private readonly TextBox _glowColor = new() { Width = 120, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBox _glowThickness = Num();
@@ -150,6 +153,8 @@ public sealed class SettingsWindow : Window
         {
             _soundDevice.Items.Add(dev.Name);
             _soundDeviceIds.Add(dev.Id);
+            _audioExcludeChecks.Add(new CheckBox { Content = dev.Name, Margin = new Thickness(0, 2, 0, 2) });
+            _audioExcludeIds.Add(dev.Id);
         }
 
         var glowTest = TestButton(Loc.T("Glow testen"));
@@ -173,18 +178,29 @@ public sealed class SettingsWindow : Window
             },
             new FrameworkElement[] { _triggerWords, _ownSpeaker, _ignoreOwn, _fuzzy, _fuzzyDist, _cooldown }));
 
-        tabControl.Items.Add(MakeTab(Loc.T("Ton & Musik"),
-            new UIElement[]
-            {
-                Row(Loc.T("Teams im Ruhe-Modus:"), _quietBehavior),
-                Row(Loc.T("Teams Ruhe-Lautstärke (%):"), _quietLevel),
-                Row(Loc.T("Teams Gesprächs-Lautstärke (%):"), _convLevel),
-                Row(Loc.T("Musik-App (SMTC-Kennung):"), _musicHint),
-                _manageTeams,
-                _manageMusic,
-                _autoConv
-            },
-            new FrameworkElement[] { _quietBehavior, _quietLevel, _convLevel, _musicHint, _manageTeams, _manageMusic, _autoConv }));
+        var audioRows = new List<UIElement>
+        {
+            Row(Loc.T("Teams im Ruhe-Modus:"), _quietBehavior),
+            Row(Loc.T("Teams Ruhe-Lautstärke (%):"), _quietLevel),
+            Row(Loc.T("Teams Gesprächs-Lautstärke (%):"), _convLevel),
+            Row(Loc.T("Musik-App (SMTC-Kennung):"), _musicHint),
+            _manageTeams,
+            _manageMusic,
+            _autoConv,
+            _convOnCall,
+            new TextBlock { Text = Loc.T("Diese Wiedergabegeräte nie automatisch anpassen:"), Margin = new Thickness(0, 10, 0, 2) }
+        };
+        audioRows.AddRange(_audioExcludeChecks);
+        audioRows.Add(new TextBlock
+        {
+            Text = Loc.T("Tipp: In Teams ein 'Zweites Rufsignal' auf ein hier ausgeschlossenes Gerät legen (z. B. Lautsprecher) – dann bleibt das Klingeln zusätzlicher Anrufe immer laut, während der Call leise wird."),
+            Foreground = System.Windows.Media.Brushes.Gray,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 0)
+        });
+        var audioInputs = new List<FrameworkElement> { _quietBehavior, _quietLevel, _convLevel, _musicHint, _manageTeams, _manageMusic, _autoConv, _convOnCall };
+        audioInputs.AddRange(_audioExcludeChecks);
+        tabControl.Items.Add(MakeTab(Loc.T("Ton & Musik"), audioRows.ToArray(), audioInputs.ToArray()));
 
         var glowRows = new List<UIElement>
         {
@@ -392,6 +408,9 @@ public sealed class SettingsWindow : Window
         _manageTeams.IsChecked = s.RaiseTeamsOnTrigger;
         _manageMusic.IsChecked = s.PauseMusicOnTrigger;
         _autoConv.IsChecked = s.AutoEnterConversationOnTrigger;
+        _convOnCall.IsChecked = s.EnterConversationOnIncomingCall;
+        for (int i = 0; i < _audioExcludeChecks.Count; i++)
+            _audioExcludeChecks[i].IsChecked = s.AudioExcludedDeviceIds.Contains(_audioExcludeIds[i], StringComparer.OrdinalIgnoreCase);
 
         _glowColor.Text = s.GlowColorHex;
         _glowThickness.Text = s.GlowThickness.ToString(CultureInfo.InvariantCulture);
@@ -463,6 +482,11 @@ public sealed class SettingsWindow : Window
         s.RaiseTeamsOnTrigger = _manageTeams.IsChecked == true;
         s.PauseMusicOnTrigger = _manageMusic.IsChecked == true;
         s.AutoEnterConversationOnTrigger = _autoConv.IsChecked == true;
+        s.EnterConversationOnIncomingCall = _convOnCall.IsChecked == true;
+        var excludedDevices = new List<string>();
+        for (int i = 0; i < _audioExcludeChecks.Count; i++)
+            if (_audioExcludeChecks[i].IsChecked == true) excludedDevices.Add(_audioExcludeIds[i]);
+        s.AudioExcludedDeviceIds = excludedDevices;
 
         s.GlowColorHex = string.IsNullOrWhiteSpace(_glowColor.Text) ? s.GlowColorHex : _glowColor.Text.Trim();
         s.GlowThickness = ParseDouble(_glowThickness.Text, s.GlowThickness, 1, 200);

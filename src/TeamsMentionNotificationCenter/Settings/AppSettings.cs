@@ -66,11 +66,17 @@ public sealed class AppSettings
     public int ConversationLevelPercent { get; set; } = 100;
     /// <summary>Teilstring der Medien-App (SMTC AppUserModelId), z. B. "Spotify".</summary>
     public string MusicAppHint { get; set; } = "Spotify";
+    /// <summary>Wiedergabegeräte (Endpoint-IDs), deren Teams-Ton NIE automatisch geändert wird –
+    /// z. B. das Gerät des Teams-„Zweiten Rufsignals", damit das Klingeln zusätzlicher Anrufe laut bleibt.</summary>
+    public List<string> AudioExcludedDeviceIds { get; set; } = new();
 
     // --- Automatische Aktionen bei Trigger (jede einzeln schaltbar) ---
     public bool AutoEnterConversationOnTrigger { get; set; } = true;
     public bool RaiseTeamsOnTrigger { get; set; } = true;
     public bool PauseMusicOnTrigger { get; set; } = true;
+    /// <summary>Bei einem eingehenden Teams-Anruf (Klingel-Popup) automatisch in den Gesprächs-Modus –
+    /// dadurch werden Klingeln und Anruf laut und die Musik pausiert.</summary>
+    public bool EnterConversationOnIncomingCall { get; set; } = true;
 
     // --- Rückkehr in den Ruhe-Modus ---
     public bool AutoReturnToQuietEnabled { get; set; } = false;
@@ -209,9 +215,11 @@ public sealed class AppSettings
         QuietLevelPercent = s.QuietLevelPercent;
         ConversationLevelPercent = s.ConversationLevelPercent;
         MusicAppHint = s.MusicAppHint;
+        AudioExcludedDeviceIds = s.AudioExcludedDeviceIds;
         AutoEnterConversationOnTrigger = s.AutoEnterConversationOnTrigger;
         RaiseTeamsOnTrigger = s.RaiseTeamsOnTrigger;
         PauseMusicOnTrigger = s.PauseMusicOnTrigger;
+        EnterConversationOnIncomingCall = s.EnterConversationOnIncomingCall;
         AutoReturnToQuietEnabled = s.AutoReturnToQuietEnabled;
         AutoReturnAfterSeconds = s.AutoReturnAfterSeconds;
         AutoReturnAlsoWhenManual = s.AutoReturnAlsoWhenManual;
