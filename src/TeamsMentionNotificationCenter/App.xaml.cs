@@ -47,8 +47,23 @@ public partial class App : Application
 
         UpdateManager.CleanupAfterUpdate();
 
+        // Nach einem (Silent-)Update-Neustart: vorherigen Zustand aus den Argumenten wiederherstellen.
+        AppMode? resumeMode = null;
+        bool resumeMusicPaused = false;
+        foreach (var arg in e.Args)
+        {
+            if (arg.StartsWith("--resume-mode=", StringComparison.OrdinalIgnoreCase) &&
+                Enum.TryParse<AppMode>(arg["--resume-mode=".Length..], ignoreCase: true, out var m))
+                resumeMode = m;
+            else if (string.Equals(arg, "--resume-music-paused", StringComparison.OrdinalIgnoreCase))
+                resumeMusicPaused = true;
+        }
+        if (resumeMode != null)
+            Core.Logger.Log($"Neustart nach Update – Zustand wird wiederhergestellt (Modus {resumeMode}, MusikPausiert={resumeMusicPaused}).");
+
         // Portabel gestartet (z. B. aus Downloads)? Installation nach %LOCALAPPDATA%\Programs anbieten.
-        if (InstallManager.ShouldOffer(settings) &&
+        // (Nicht beim automatischen Neustart nach einem Update – der soll lautlos bleiben.)
+        if (resumeMode == null && InstallManager.ShouldOffer(settings) &&
             InstallManager.OfferAndInstall(settings, ReleaseSingleInstanceMutex))
         {
             Shutdown(); // installierte Instanz wurde gestartet und übernimmt
@@ -61,7 +76,11 @@ public partial class App : Application
 
         Core.Logger.Log($"App gestartet. Trigger-Wörter={settings.TriggerWords.Count}, DetectionEnabled={settings.DetectionEnabled}");
 
-        _controller = new AppController(settings, Dispatcher);
+        _controller = new AppController(settings, Dispatcher)
+        {
+            ResumeMode = resumeMode,
+            ResumeMusicPausedByUs = resumeMusicPaused
+        };
         _controller.Start();
     }
 

@@ -164,6 +164,11 @@ public static class Loc
             ("Auto-return also on manual activation (shortcut/menu)", "Ritorno automatico anche con attivazione manuale (scorciatoia/menu)"),
         ["Mit Windows starten"] = ("Start with Windows", "Avvia con Windows"),
         ["Beim Start auf Updates prüfen"] = ("Check for updates at startup", "Cerca aggiornamenti all'avvio"),
+        ["Updates automatisch im Hintergrund installieren (ohne Nachfrage)"] =
+            ("Install updates automatically in the background (no prompt)",
+             "Installa gli aggiornamenti automaticamente in background (senza chiedere)"),
+        ["Update wird im Hintergrund installiert …"] =
+            ("Installing update in the background …", "Installazione dell'aggiornamento in background …"),
         ["Installation nach %LOCALAPPDATA%\\Programs anbieten (bei portablem Start)"] =
             ("Offer installing to %LOCALAPPDATA%\\Programs (when started portable)",
              "Proponi l'installazione in %LOCALAPPDATA%\\Programs (quando avviata in modo portatile)"),

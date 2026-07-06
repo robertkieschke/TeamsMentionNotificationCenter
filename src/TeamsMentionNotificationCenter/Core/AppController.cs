@@ -36,6 +36,12 @@ public sealed class AppController : IDisposable
 
     public AppMode Mode { get; private set; } = AppMode.Quiet;
 
+    /// <summary>Nach einem Update-Neustart wiederherzustellender Modus (aus --resume-mode).</summary>
+    public AppMode? ResumeMode { get; set; }
+
+    /// <summary>Nach einem Update-Neustart: Musik war von UNS pausiert (aus --resume-music-paused).</summary>
+    public bool ResumeMusicPausedByUs { get; set; }
+
     public AppController(AppSettings settings, Dispatcher dispatcher)
     {
         _settings = settings;
@@ -80,8 +86,10 @@ public sealed class AppController : IDisposable
         _autoReturnTimer.Tick += (_, _) => CheckAutoReturn();
         _autoReturnTimer.Start();
 
-        // Startmodus: standardmäßig (manueller) Gesprächs-Modus – der erste Ruhe-Modus muss aktiv gewählt werden.
-        SetMode(_settings.StartInConversationMode ? AppMode.Conversation : AppMode.Quiet, fromTrigger: false);
+        // Startmodus: nach einem Update-Neustart den vorherigen Zustand wiederherstellen,
+        // sonst gemäß Einstellung (Standard: manueller Gesprächs-Modus).
+        if (ResumeMusicPausedByUs) _audio.MarkMusicPausedByUs();
+        SetMode(ResumeMode ?? (_settings.StartInConversationMode ? AppMode.Conversation : AppMode.Quiet), fromTrigger: false);
 
         // Verzögert auf Updates prüfen (blockiert den Start nicht; meldet sich nur bei neuer Version).
         if (_settings.CheckUpdatesOnStartup)
@@ -89,8 +97,18 @@ public sealed class AppController : IDisposable
             var updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
             updateTimer.Tick += (_, _) => { updateTimer.Stop(); CheckForUpdates(manual: false); };
             updateTimer.Start();
+
+            // Im Silent-Modus zusätzlich periodisch prüfen – die App läuft oft tage-/wochenlang im Tray.
+            var periodicTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(6) };
+            periodicTimer.Tick += (_, _) => { if (_settings.SilentAutoUpdate) CheckForUpdates(manual: false); };
+            periodicTimer.Start();
         }
     }
+
+    /// <summary>Argumente für den Neustart nach einem Update, damit die neue Instanz den
+    /// aktuellen Zustand nahtlos wiederherstellt.</summary>
+    private string BuildResumeArguments() =>
+        $"--resume-mode={Mode}" + (_audio.MusicPausedByUs ? " --resume-music-paused" : "");
 
     /// <summary>Update-Prüfung. Bei manueller Prüfung (Tray) gibt es IMMER eine Rückmeldung,
     /// beim Start-Check nur, wenn tatsächlich eine neue Version existiert.</summary>
@@ -109,11 +127,23 @@ public sealed class AppController : IDisposable
             }
 
             Logger.Log($"Update verfügbar: {release.Tag} (installiert: {AppInfo.Version})");
-            if (!UpdateManager.AskUser(release)) return; // „Später" – beim nächsten Start/der nächsten Prüfung erneut
+
+            if (!manual && _settings.SilentAutoUpdate)
+            {
+                // Silent-Autoupdate: ohne Nachfrage im Hintergrund installieren; der aktuelle
+                // Zustand (Modus, Musik-Merker) wird über den Neustart hinweg wiederhergestellt.
+                Logger.Log("Silent-Update: Installation im Hintergrund ohne Nachfrage.");
+                _tray?.UpdateStatus(Loc.T("Update wird im Hintergrund installiert …"), true);
+            }
+            else if (!UpdateManager.AskUser(release))
+            {
+                return; // „Später" – beim nächsten Start/der nächsten Prüfung erneut
+            }
 
             await UpdateManager.DownloadAndRestartAsync(release,
                 status => _tray?.UpdateStatus(status, true),
-                releaseSingleInstance: () => (System.Windows.Application.Current as App)?.ReleaseSingleInstanceMutex());
+                releaseSingleInstance: () => (System.Windows.Application.Current as App)?.ReleaseSingleInstanceMutex(),
+                restartArguments: BuildResumeArguments());
         }
         catch (Exception ex)
         {

@@ -75,6 +75,7 @@ public sealed class SettingsWindow : Window
     private readonly CheckBox _detection = new() { Content = Loc.T("Erkennung aktiv") };
     private readonly CheckBox _autostart = new() { Content = Loc.T("Mit Windows starten") };
     private readonly CheckBox _checkUpdates = new() { Content = Loc.T("Beim Start auf Updates prüfen") };
+    private readonly CheckBox _silentUpdate = new() { Content = Loc.T("Updates automatisch im Hintergrund installieren (ohne Nachfrage)") };
     private readonly CheckBox _offerInstall = new() { Content = Loc.T("Installation nach %LOCALAPPDATA%\\Programs anbieten (bei portablem Start)") };
     private readonly CheckBox _debug = new() { Content = Loc.T("Debug-Log schreiben (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)") };
     private readonly TextBox _pollInterval = Num();
@@ -276,11 +277,12 @@ public sealed class SettingsWindow : Window
                 _detection,
                 _autostart,
                 _checkUpdates,
+                _silentUpdate,
                 _offerInstall,
                 _debug,
                 Row(Loc.T("Poll-Intervall (ms):"), _pollInterval)
             },
-            new FrameworkElement[] { _language, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _detection, _autostart, _checkUpdates, _offerInstall, _debug, _pollInterval }));
+            new FrameworkElement[] { _language, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _detection, _autostart, _checkUpdates, _silentUpdate, _offerInstall, _debug, _pollInterval }));
 
         tabControl.Items.Add(BuildInfoTab());
 
@@ -461,6 +463,7 @@ public sealed class SettingsWindow : Window
         _detection.IsChecked = s.DetectionEnabled;
         _autostart.IsChecked = s.StartWithWindows;
         _checkUpdates.IsChecked = s.CheckUpdatesOnStartup;
+        _silentUpdate.IsChecked = s.SilentAutoUpdate;
         _offerInstall.IsChecked = s.OfferInstallOnStartup;
         _debug.IsChecked = s.DebugLogging;
         _pollInterval.Text = s.PollIntervalMs.ToString();
@@ -539,6 +542,7 @@ public sealed class SettingsWindow : Window
         s.DetectionEnabled = _detection.IsChecked == true;
         s.StartWithWindows = _autostart.IsChecked == true;
         s.CheckUpdatesOnStartup = _checkUpdates.IsChecked == true;
+        s.SilentAutoUpdate = _silentUpdate.IsChecked == true;
         s.OfferInstallOnStartup = _offerInstall.IsChecked == true;
         s.DebugLogging = _debug.IsChecked == true;
         s.PollIntervalMs = ParseInt(_pollInterval.Text, s.PollIntervalMs, 150, 5000);

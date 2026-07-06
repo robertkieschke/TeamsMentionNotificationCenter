@@ -25,6 +25,13 @@ public sealed class AudioController : IDisposable
 
     public AudioController(AppSettings settings) => _settings = settings;
 
+    /// <summary>True, wenn WIR die Musik pausiert haben (Basis fürs Auto-Fortsetzen im Ruhe-Modus).</summary>
+    public bool MusicPausedByUs => _musicPausedByUs;
+
+    /// <summary>Stellt den Pausiert-von-uns-Merker nach einem Update-Neustart wieder her, damit die
+    /// Musik beim nächsten Ruhe-Modus weiterhin automatisch fortgesetzt wird.</summary>
+    public void MarkMusicPausedByUs() => _musicPausedByUs = true;
+
     public async Task InitAsync()
     {
         try { _smtc = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync(); }

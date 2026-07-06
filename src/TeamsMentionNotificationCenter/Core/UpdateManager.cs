@@ -116,7 +116,8 @@ public static class UpdateManager
     /// <paramref name="releaseSingleInstance"/> gibt den Single-Instance-Mutex frei, damit die
     /// neue Instanz nicht am Instanzschutz scheitert.
     /// </summary>
-    public static async Task DownloadAndRestartAsync(ReleaseInfo release, Action<string> status, Action releaseSingleInstance)
+    public static async Task DownloadAndRestartAsync(ReleaseInfo release, Action<string> status, Action releaseSingleInstance,
+        string restartArguments = "")
     {
         string exePath = Environment.ProcessPath ?? throw new InvalidOperationException("Eigener Programmpfad unbekannt.");
         string dir = Path.GetDirectoryName(exePath)!;
@@ -150,7 +151,7 @@ public static class UpdateManager
 
         Logger.Log($"Update auf {release.Tag} installiert – Neustart.");
         releaseSingleInstance();
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exePath) { UseShellExecute = true });
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exePath, restartArguments) { UseShellExecute = true });
         Application.Current.Shutdown();
     }
 
