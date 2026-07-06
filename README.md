@@ -113,7 +113,7 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Wichtigste Felder
 | `StartInConversationMode` / `StartWithWindows` | Startverhalten / Autostart mit Windows. |
 | `CheckUpdatesOnStartup` | Beim Programmstart auf neue GitHub-Releases prüfen. |
 | `SilentAutoUpdate` | Updates ohne Nachfrage im Hintergrund installieren (Modus wird wiederhergestellt). |
-| `ShowNotesAfterUpdate` | Nach einem Update einmalig die Versionshinweise der neuen Version anzeigen. |
+| `ShowNotesAfterUpdate` | Nach einem Update einmalig die Versionshinweise der neuen Version anzeigen. Mehrsprachige Notes: Abschnitte `## Deutsch` / `## English` / `## Italiano` im Release-Text – angezeigt wird nur die UI-Sprache. |
 | `Language` | UI-Sprache (`De` / `En` / `It`). |
 
 ## Datenschutz

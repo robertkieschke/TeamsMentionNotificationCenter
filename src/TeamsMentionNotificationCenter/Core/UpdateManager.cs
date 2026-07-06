@@ -85,9 +85,44 @@ public static class UpdateManager
                 root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "");
     }
 
-    /// <summary>Zeigt die Versionshinweise nach einem Update (nicht-modal).</summary>
+    /// <summary>
+    /// Extrahiert aus mehrsprachigen Release-Notes den Abschnitt der gewünschten Sprache.
+    /// Erwartetes Autoren-Format: Abschnitte mit den Überschriften „## Deutsch", „## English",
+    /// „## Italiano" (Ebene egal). Ohne solche Überschriften – oder wenn der gewünschte Abschnitt
+    /// fehlt/leer ist – wird der komplette Text zurückgegeben (kompatibel zu alten Releases).
+    /// </summary>
+    public static string ExtractLanguageSection(string body, AppLanguage language)
+    {
+        string wanted = language switch { AppLanguage.En => "english", AppLanguage.It => "italiano", _ => "deutsch" };
+        string[] known = { "deutsch", "english", "italiano" };
+
+        var sb = new System.Text.StringBuilder();
+        bool inWanted = false, anyHeading = false;
+        foreach (var line in (body ?? "").Replace("\r\n", "\n").Split('\n'))
+        {
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("#"))
+            {
+                var title = trimmed.TrimStart('#').Trim().TrimEnd(':').ToLowerInvariant();
+                if (known.Contains(title))
+                {
+                    anyHeading = true;
+                    inWanted = title == wanted;
+                    continue; // Sprachüberschrift selbst nicht mit anzeigen
+                }
+            }
+            if (inWanted) sb.AppendLine(line);
+        }
+
+        var section = sb.ToString().Trim();
+        return anyHeading && section.Length > 0 ? section : (body ?? "");
+    }
+
+    /// <summary>Zeigt die Versionshinweise nach einem Update (nicht-modal), in der UI-Sprache
+    /// (sofern die Notes mehrsprachige Abschnitte enthalten).</summary>
     public static void ShowNotesWindow(string tag, string markdownBody, string releaseUrl)
     {
+        markdownBody = ExtractLanguageSection(markdownBody, Loc.Language);
         var heading = new TextBlock
         {
             Text = Loc.Tf("Neu in Version {0}", tag.TrimStart('v', 'V')),
