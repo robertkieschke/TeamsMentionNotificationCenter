@@ -70,6 +70,7 @@ public sealed class AppController : IDisposable
             onOpenSettings: OpenSettingsWindow,
             onReloadSettings: ReloadSettingsFromDisk,
             onCheckUpdates: () => CheckForUpdates(manual: true),
+            onShowReleaseNotes: () => OpenSettingsWindow(showReleaseNotes: true),
             onExit: () => System.Windows.Application.Current.Shutdown());
         _tray.UpdateStatus(Loc.T("Starte …"), false);
         _tray.SetDetection(_settings.DetectionEnabled);
@@ -339,9 +340,16 @@ public sealed class AppController : IDisposable
         Logger.Log($"Erkennung {( _settings.DetectionEnabled ? "AN" : "AUS")}");
     }
 
-    private void OpenSettingsWindow()
+    private void OpenSettingsWindow() => OpenSettingsWindow(showReleaseNotes: false);
+
+    private void OpenSettingsWindow(bool showReleaseNotes)
     {
-        if (_settingsWindow != null) { _settingsWindow.Activate(); return; }
+        if (_settingsWindow != null)
+        {
+            if (showReleaseNotes) _settingsWindow.ShowReleaseNotesTab();
+            _settingsWindow.Activate();
+            return;
+        }
         _settingsWindow = new SettingsWindow(_settings,
             onApply: applied =>
             {
@@ -364,6 +372,7 @@ public sealed class AppController : IDisposable
             _glow.Build(); // Vorschau verwerfen und den tatsächlich gespeicherten Stand wiederherstellen
             _glow.SetPersistentBorder(ShouldShowPersistentBorder());
         };
+        if (showReleaseNotes) _settingsWindow.ShowReleaseNotesTab(); // auch beim FRISCH geöffneten Fenster
         _settingsWindow.Show();
     }
 

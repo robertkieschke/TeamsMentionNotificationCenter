@@ -173,6 +173,12 @@ public static class Loc
             ("Show release notes after an update", "Mostra le note di rilascio dopo un aggiornamento"),
         ["Neu in Version {0}"] = ("What's new in version {0}", "Novità nella versione {0}"),
         ["Release-Seite öffnen"] = ("Open release page", "Apri la pagina del rilascio"),
+        ["Release Notes"] = ("Release notes", "Note di rilascio"),
+        ["Release Notes anzeigen"] = ("Show release notes", "Mostra note di rilascio"),
+        ["Release Notes werden geladen …"] = ("Loading release notes …", "Caricamento delle note di rilascio …"),
+        ["Keine Releases gefunden."] = ("No releases found.", "Nessun rilascio trovato."),
+        ["Release Notes konnten nicht geladen werden (offline?)."] =
+            ("Could not load release notes (offline?).", "Impossibile caricare le note di rilascio (offline?)."),
         ["Installation nach %LOCALAPPDATA%\\Programs anbieten (bei portablem Start)"] =
             ("Offer installing to %LOCALAPPDATA%\\Programs (when started portable)",
              "Proponi l'installazione in %LOCALAPPDATA%\\Programs (quando avviata in modo portatile)"),

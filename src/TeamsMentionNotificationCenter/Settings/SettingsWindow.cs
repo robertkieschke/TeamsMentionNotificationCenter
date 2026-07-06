@@ -105,6 +105,8 @@ public sealed class SettingsWindow : Window
 
     private readonly List<TabItem> _tabs = new();
     private readonly Dictionary<FrameworkElement, TabItem> _tabOf = new();
+    private readonly TabControl _tabControl = new();
+    private TabItem? _notesTab;
     private bool _suppressDirty;
     private static readonly System.Windows.Media.Brush DirtyBrush = System.Windows.Media.Brushes.RoyalBlue;
 
@@ -116,7 +118,7 @@ public sealed class SettingsWindow : Window
         _onTestBanner = onTestBanner;
 
         Title = AppInfo.DisplayName + Loc.T(" – Einstellungen");
-        Width = 720;
+        Width = 800;
         Height = 620;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Icon = Branding.CreateImageSource(64, Branding.Accent);
@@ -168,7 +170,7 @@ public sealed class SettingsWindow : Window
         var soundTest = TestButton(Loc.T("Ton testen"));
         soundTest.Click += (_, _) => SoundNotifier.Play(SelectedSoundPath(), ParseInt(_soundVolume.Text, 100, 0, 100), SelectedDeviceId());
 
-        var tabControl = new TabControl();
+        var tabControl = _tabControl;
 
         tabControl.Items.Add(MakeTab(Loc.T("Erkennung"),
             new UIElement[]
@@ -286,6 +288,8 @@ public sealed class SettingsWindow : Window
             },
             new FrameworkElement[] { _language, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _detection, _autostart, _checkUpdates, _silentUpdate, _showNotes, _offerInstall, _debug, _pollInterval }));
 
+        _notesTab = BuildReleaseNotesTab();
+        tabControl.Items.Add(_notesTab);
         tabControl.Items.Add(BuildInfoTab());
 
         var close = new Button { Content = Loc.T("Schließen"), Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(8, 0, 0, 0), IsCancel = true };
@@ -330,6 +334,76 @@ public sealed class SettingsWindow : Window
         };
         _tabs.Add(tab);
         foreach (var input in inputs) _tabOf[input] = tab;
+        return tab;
+    }
+
+    /// <summary>Wechselt (z. B. vom Tray aus) direkt auf den Release-Notes-Tab.</summary>
+    public void ShowReleaseNotesTab()
+    {
+        if (_notesTab != null) _tabControl.SelectedItem = _notesTab;
+    }
+
+    /// <summary>Tab mit allen Release Notes (neueste zuerst, in der UI-Sprache). Die Daten werden
+    /// erst beim ersten Öffnen des Tabs von GitHub geladen.</summary>
+    private TabItem BuildReleaseNotesTab()
+    {
+        var panel = new StackPanel { Margin = new Thickness(14) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = Loc.T("Release Notes werden geladen …"),
+            Foreground = System.Windows.Media.Brushes.Gray
+        });
+        var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = panel };
+        var tab = new TabItem { Header = Loc.T("Release Notes"), Tag = Loc.T("Release Notes"), Content = sv };
+
+        bool loaded = false;
+        sv.IsVisibleChanged += async (_, _) =>
+        {
+            if (!sv.IsVisible || loaded) return;
+            loaded = true;
+            try
+            {
+                var releases = await UpdateManager.GetAllReleasesAsync();
+                panel.Children.Clear();
+                if (releases.Count == 0)
+                {
+                    panel.Children.Add(new TextBlock { Text = Loc.T("Keine Releases gefunden.") });
+                    return;
+                }
+                bool first = true;
+                foreach (var r in releases)
+                {
+                    if (!first)
+                        panel.Children.Add(new Separator { Margin = new Thickness(0, 14, 0, 4), Opacity = 0.5 });
+                    first = false;
+
+                    string date = r.PublishedAt is { } dt ? " – " + dt.ToString("d") : "";
+                    panel.Children.Add(new TextBlock
+                    {
+                        Text = Loc.Tf("Version {0}", r.Tag.TrimStart('v', 'V')) + date,
+                        FontSize = 15,
+                        FontWeight = FontWeights.Bold,
+                        Margin = new Thickness(0, 6, 0, 4)
+                    });
+                    panel.Children.Add(new TextBlock
+                    {
+                        Text = UpdateManager.FormatNotesForDisplay(r.Body, Loc.Language),
+                        TextWrapping = TextWrapping.Wrap
+                    });
+                }
+            }
+            catch
+            {
+                panel.Children.Clear();
+                panel.Children.Add(new TextBlock
+                {
+                    Text = Loc.T("Release Notes konnten nicht geladen werden (offline?)."),
+                    Foreground = System.Windows.Media.Brushes.Gray,
+                    TextWrapping = TextWrapping.Wrap
+                });
+                loaded = false; // beim nächsten Öffnen erneut versuchen
+            }
+        };
         return tab;
     }
 

@@ -118,6 +118,33 @@ public static class UpdateManager
         return anyHeading && section.Length > 0 ? section : (body ?? "");
     }
 
+    /// <summary>Bereitet Release-Notes für die Textanzeige auf: Sprachabschnitt wählen + Markdown entschärfen.</summary>
+    public static string FormatNotesForDisplay(string body, AppLanguage language) =>
+        CleanMarkdown(ExtractLanguageSection(body, language));
+
+    public sealed record ReleaseNotesEntry(string Tag, string Body, string Url, DateTime? PublishedAt);
+
+    /// <summary>Alle veröffentlichten Releases (neueste zuerst, max. 20) – für den Release-Notes-Tab.</summary>
+    public static async Task<List<ReleaseNotesEntry>> GetAllReleasesAsync()
+    {
+        using var resp = await Http.GetAsync($"{RepoApi}/releases?per_page=20");
+        resp.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var list = new List<ReleaseNotesEntry>();
+        foreach (var r in doc.RootElement.EnumerateArray())
+        {
+            if (r.TryGetProperty("draft", out var d) && d.GetBoolean()) continue;
+            string tag = r.GetProperty("tag_name").GetString() ?? "";
+            string body = r.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
+            string url = r.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+            DateTime? published = r.TryGetProperty("published_at", out var p) && p.ValueKind == JsonValueKind.String &&
+                DateTime.TryParse(p.GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt)
+                ? dt.ToLocalTime() : null;
+            list.Add(new ReleaseNotesEntry(tag, body, url, published));
+        }
+        return list; // GitHub liefert neueste zuerst
+    }
+
     /// <summary>Zeigt die Versionshinweise nach einem Update (nicht-modal), in der UI-Sprache
     /// (sofern die Notes mehrsprachige Abschnitte enthalten).</summary>
     public static void ShowNotesWindow(string tag, string markdownBody, string releaseUrl)

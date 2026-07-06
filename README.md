@@ -84,6 +84,8 @@ werden. Einstellungen legt die App beim ersten Start unter `%APPDATA%\TeamsMenti
   „Übernehmen" speichert, „Verwerfen" setzt zurück.
 - **Standard-Hotkeys** (frei änderbar): `Ctrl+Alt+T` Modus umschalten · `Ctrl+Alt+Q` Ruhe ·
   `Ctrl+Alt+G` Gespräch · `Ctrl+Alt+E` Erkennung an/aus.
+- **Release Notes:** Tray → *Release Notes anzeigen* öffnet die Einstellungen direkt im Reiter
+  *Release Notes* – alle Versionen untereinander (neueste zuerst), in der eingestellten Sprache.
 
 ## Konfiguration
 
