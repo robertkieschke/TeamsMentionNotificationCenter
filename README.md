@@ -69,8 +69,10 @@ src/TeamsMentionNotificationCenter/bin/Release/net10.0-windows10.0.19041.0/win-x
 ```
 
 Diese `.exe` kannst du direkt an Kolleg:innen weitergeben – Doppelklick startet die App im Tray, ganz ohne
-Installation. Die daneben liegende `.pdb` ist nur für Debugging und muss nicht mitverteilt werden.
-Einstellungen legt die App beim ersten Start unter `%APPDATA%\TeamsMentionNotificationCenter` an.
+Installation. Beim Start von einem „portablen" Ort (z. B. Downloads) bietet die App an, sich nach
+`%LOCALAPPDATA%\Programs` zu installieren (inkl. Startmenü-Eintrag) – von dort funktioniert das
+Selbst-Update zuverlässig. Die daneben liegende `.pdb` ist nur für Debugging und muss nicht mitverteilt
+werden. Einstellungen legt die App beim ersten Start unter `%APPDATA%\TeamsMentionNotificationCenter` an.
 
 ## Bedienung
 

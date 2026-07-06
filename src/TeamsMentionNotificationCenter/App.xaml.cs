@@ -19,6 +19,7 @@ public partial class App : Application
 
         var settings = AppSettings.Load();
         Localization.Loc.Language = settings.Language;
+        Core.Logger.Enabled = settings.DebugLogging; // früh setzen, damit auch Install/Update-Schritte geloggt werden
 
         // Nur eine Instanz zulassen: Der Mutex lebt so lange wie der Prozess; stürzt die App ab,
         // räumt Windows das Kernel-Objekt automatisch weg. Ohne Prefix gilt er pro Benutzersitzung.
@@ -46,11 +47,18 @@ public partial class App : Application
 
         UpdateManager.CleanupAfterUpdate();
 
+        // Portabel gestartet (z. B. aus Downloads)? Installation nach %LOCALAPPDATA%\Programs anbieten.
+        if (InstallManager.ShouldOffer(settings) &&
+            InstallManager.OfferAndInstall(settings, ReleaseSingleInstanceMutex))
+        {
+            Shutdown(); // installierte Instanz wurde gestartet und übernimmt
+            return;
+        }
+
         // Erststart: settings.json anlegen, damit sie leicht auffindbar/bearbeitbar ist.
         if (!System.IO.File.Exists(AppSettings.SettingsPath))
             settings.Save();
 
-        Core.Logger.Enabled = settings.DebugLogging;
         Core.Logger.Log($"App gestartet. Trigger-Wörter={settings.TriggerWords.Count}, DetectionEnabled={settings.DetectionEnabled}");
 
         _controller = new AppController(settings, Dispatcher);

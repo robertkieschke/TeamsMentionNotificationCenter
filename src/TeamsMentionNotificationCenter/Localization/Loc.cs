@@ -164,6 +164,15 @@ public static class Loc
             ("Auto-return also on manual activation (shortcut/menu)", "Ritorno automatico anche con attivazione manuale (scorciatoia/menu)"),
         ["Mit Windows starten"] = ("Start with Windows", "Avvia con Windows"),
         ["Beim Start auf Updates prüfen"] = ("Check for updates at startup", "Cerca aggiornamenti all'avvio"),
+        ["Installation nach %LOCALAPPDATA%\\Programs anbieten (bei portablem Start)"] =
+            ("Offer installing to %LOCALAPPDATA%\\Programs (when started portable)",
+             "Proponi l'installazione in %LOCALAPPDATA%\\Programs (quando avviata in modo portatile)"),
+        ["Soll die App nach {0} installiert werden? Von dort aktualisiert sie sich zuverlässig selbst, erhält einen Startmenü-Eintrag und funktioniert unabhängig von der heruntergeladenen Datei. Sie startet danach automatisch aus dem neuen Ordner."] =
+            ("Install the app to {0}? From there it updates itself reliably, gets a Start menu entry and no longer depends on the downloaded file. It will restart from the new folder automatically.",
+             "Installare l'app in {0}? Da lì si aggiorna in modo affidabile, ottiene una voce nel menu Start e non dipende più dal file scaricato. Si riavvierà automaticamente dalla nuova cartella."),
+        ["Nicht mehr fragen"] = ("Don't ask again", "Non chiedere più"),
+        ["Jetzt installieren"] = ("Install now", "Installa ora"),
+        ["Installation fehlgeschlagen: {0}"] = ("Installation failed: {0}", "Installazione non riuscita: {0}"),
         ["Auf Updates prüfen …"] = ("Check for updates …", "Cerca aggiornamenti …"),
         ["Eine neue Version {0} ist verfügbar (installiert: {1}). Jetzt aktualisieren? Die Anwendung startet danach automatisch neu."] =
             ("A new version {0} is available (installed: {1}). Update now? The application will restart automatically afterwards.",

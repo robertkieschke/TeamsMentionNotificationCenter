@@ -134,6 +134,8 @@ public sealed class AppSettings
     public bool StartWithWindows { get; set; } = false;
     /// <summary>Beim Programmstart auf eine neue Version prüfen (GitHub-Releases).</summary>
     public bool CheckUpdatesOnStartup { get; set; } = true;
+    /// <summary>Beim Start von einem „portablen" Ort die Installation nach %LOCALAPPDATA%\Programs anbieten.</summary>
+    public bool OfferInstallOnStartup { get; set; } = true;
     /// <summary>Master-Schalter: Erkennung aktiv?</summary>
     public bool DetectionEnabled { get; set; } = true;
 
@@ -247,6 +249,7 @@ public sealed class AppSettings
         PollIntervalMs = s.PollIntervalMs;
         StartWithWindows = s.StartWithWindows;
         CheckUpdatesOnStartup = s.CheckUpdatesOnStartup;
+        OfferInstallOnStartup = s.OfferInstallOnStartup;
         DetectionEnabled = s.DetectionEnabled;
         StartInConversationMode = s.StartInConversationMode;
         Language = s.Language;
