@@ -1,66 +1,107 @@
 using System.Runtime.InteropServices;
 using System.Windows.Input;
-using System.Windows.Interop;
+using System.Windows.Threading;
 
 namespace TeamsMentionNotificationCenter.Input;
 
 /// <summary>
-/// Registriert globale (systemweite) Tastenkürzel über RegisterHotKey und ein
-/// Message-Only-Fenster. Muss auf dem WPF-UI-Thread initialisiert werden; die
-/// Callbacks laufen ebenfalls dort.
+/// Globale (systemweite) Tastenkürzel über einen Low-Level-Keyboard-Hook (WH_KEYBOARD_LL).
+///
+/// Bewusst KEIN RegisterHotKey: Windows behandelt AltGr als Strg+Alt, und RegisterHotKey kann
+/// links-Alt nicht von AltGr (rechts-Alt) unterscheiden – ein Hotkey wie Ctrl+Alt+Q würde damit
+/// AltGr+Q (= @) systemweit schlucken. Dieser Hook wertet nur LINKS-Alt als „Alt" und lässt
+/// Tastendrücke mit gehaltenem AltGr grundsätzlich unverändert durch.
+///
+/// Muss auf dem WPF-UI-Thread initialisiert werden (der Thread pumpt Nachrichten, was der
+/// Low-Level-Hook benötigt); Aktionen werden asynchron auf diesen Thread dispatcht, damit der
+/// Hook-Callback sofort zurückkehrt (sonst entfernt Windows den Hook nach einem Timeout).
 /// </summary>
 public sealed class HotkeyManager : IDisposable
 {
-    private const int WM_HOTKEY = 0x0312;
-    private const uint MOD_ALT = 0x0001, MOD_CONTROL = 0x0002, MOD_SHIFT = 0x0004, MOD_WIN = 0x0008, MOD_NOREPEAT = 0x4000;
+    private const uint MOD_ALT = 0x0001, MOD_CONTROL = 0x0002, MOD_SHIFT = 0x0004, MOD_WIN = 0x0008;
 
-    private HwndSource? _source;
-    private IntPtr _hwnd;
-    private int _nextId = 1;
-    private readonly Dictionary<int, Action> _actions = new();
+    private const int WH_KEYBOARD_LL = 13;
+    private const int WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
+    private const int VK_LCONTROL = 0xA2, VK_RCONTROL = 0xA3, VK_LMENU = 0xA4, VK_RMENU = 0xA5,
+                      VK_SHIFT = 0x10, VK_LWIN = 0x5B, VK_RWIN = 0x5C;
+
+    private IntPtr _hook;
+    private LowLevelKeyboardProc? _proc; // Referenz halten, sonst räumt der GC den Delegate weg
+    private Dispatcher? _dispatcher;
+    private readonly Dictionary<int, List<(uint Mods, Action Action)>> _byVk = new();
+    private readonly HashSet<int> _swallowedDown = new(); // gedrückte Hotkey-Tasten (Repeats/KeyUp mitschlucken)
 
     public void Initialize()
     {
-        var p = new HwndSourceParameters("TeamsMentionNotificationCenterHotkeys")
-        {
-            Width = 0,
-            Height = 0,
-            ParentWindow = new IntPtr(-3), // HWND_MESSAGE: unsichtbares Message-Only-Fenster
-            WindowStyle = 0
-        };
-        _source = new HwndSource(p);
-        _hwnd = _source.Handle;
-        _source.AddHook(WndProc);
+        _dispatcher = Dispatcher.CurrentDispatcher;
+        _proc = HookCallback;
+        _hook = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, GetModuleHandle(null), 0);
     }
 
     /// <summary>Alle registrierten Hotkeys entfernen (z. B. vor dem Neuladen der Einstellungen).</summary>
     public void Clear()
     {
-        if (_hwnd == IntPtr.Zero) return;
-        foreach (var id in _actions.Keys) UnregisterHotKey(_hwnd, id);
-        _actions.Clear();
+        _byVk.Clear();
+        _swallowedDown.Clear();
     }
 
-    /// <summary>Registriert eine Kombination wie "Ctrl+Alt+Q". Gibt false zurück bei Fehler/Konflikt.</summary>
+    /// <summary>Registriert eine Kombination wie "Ctrl+Alt+Q". Gibt false zurück, wenn sie nicht parsbar ist.</summary>
     public bool Register(string combo, Action action)
     {
-        if (_hwnd == IntPtr.Zero) return false;
+        if (_hook == IntPtr.Zero) return false;
         if (!TryParse(combo, out uint mods, out uint vk)) return false;
-        int id = _nextId++;
-        if (!RegisterHotKey(_hwnd, id, mods | MOD_NOREPEAT, vk)) return false;
-        _actions[id] = action;
+        if (!_byVk.TryGetValue((int)vk, out var list))
+            _byVk[(int)vk] = list = new List<(uint, Action)>();
+        list.Add((mods, action));
         return true;
     }
 
-    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (msg == WM_HOTKEY && _actions.TryGetValue(wParam.ToInt32(), out var action))
+        if (nCode < 0 || _byVk.Count == 0)
+            return CallNextHookEx(_hook, nCode, wParam, lParam);
+
+        int msg = wParam.ToInt32();
+        int vk = Marshal.ReadInt32(lParam); // KBDLLHOOKSTRUCT.vkCode ist das erste Feld
+
+        if (msg is WM_KEYUP or WM_SYSKEYUP)
         {
-            handled = true;
-            try { action(); } catch { }
+            // Zu einem geschluckten KeyDown gehört auch ein geschlucktes KeyUp.
+            if (_swallowedDown.Remove(vk)) return (IntPtr)1;
+            return CallNextHookEx(_hook, nCode, wParam, lParam);
         }
-        return IntPtr.Zero;
+
+        if (msg is WM_KEYDOWN or WM_SYSKEYDOWN)
+        {
+            if (_swallowedDown.Contains(vk)) return (IntPtr)1; // Auto-Repeat: schlucken, nicht erneut auslösen
+
+            if (_byVk.TryGetValue(vk, out var candidates))
+            {
+                // AltGr (rechts-Alt) gedrückt? Dann wird gerade ein Zeichen getippt (@, €, {, … ) –
+                // niemals als Hotkey werten und die Taste unverändert durchreichen.
+                if (IsDown(VK_RMENU))
+                    return CallNextHookEx(_hook, nCode, wParam, lParam);
+
+                uint mods = 0;
+                if (IsDown(VK_LCONTROL) || IsDown(VK_RCONTROL)) mods |= MOD_CONTROL;
+                if (IsDown(VK_LMENU)) mods |= MOD_ALT; // nur LINKS-Alt zählt als Alt
+                if (IsDown(VK_SHIFT)) mods |= MOD_SHIFT;
+                if (IsDown(VK_LWIN) || IsDown(VK_RWIN)) mods |= MOD_WIN;
+
+                foreach (var (wanted, action) in candidates)
+                {
+                    if (wanted != mods) continue; // exakte Modifier-Übereinstimmung wie RegisterHotKey
+                    _swallowedDown.Add(vk);
+                    _dispatcher?.BeginInvoke(() => { try { action(); } catch { } });
+                    return (IntPtr)1; // Tastendruck schlucken, damit er nicht zusätzlich in der App landet
+                }
+            }
+        }
+
+        return CallNextHookEx(_hook, nCode, wParam, lParam);
     }
+
+    private static bool IsDown(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
 
     private static bool TryParse(string combo, out uint mods, out uint vk)
     {
@@ -91,19 +132,29 @@ public sealed class HotkeyManager : IDisposable
     public void Dispose()
     {
         Clear();
-        if (_source != null)
+        if (_hook != IntPtr.Zero)
         {
-            _source.RemoveHook(WndProc);
-            _source.Dispose();
-            _source = null;
+            UnhookWindowsHookEx(_hook);
+            _hook = IntPtr.Zero;
         }
+        _proc = null;
     }
 
+    private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
     [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+    private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr GetModuleHandle(string? lpModuleName);
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int vKey);
 }
