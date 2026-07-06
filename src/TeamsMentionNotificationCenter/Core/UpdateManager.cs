@@ -19,8 +19,8 @@ namespace TeamsMentionNotificationCenter.Core;
 /// </summary>
 public static class UpdateManager
 {
-    private const string ApiLatest =
-        "https://api.github.com/repos/robertkieschke/TeamsMentionNotificationCenter/releases/latest";
+    private const string RepoApi = "https://api.github.com/repos/robertkieschke/TeamsMentionNotificationCenter";
+    private const string ApiLatest = RepoApi + "/releases/latest";
 
     private static readonly HttpClient Http = CreateClient();
 
@@ -70,6 +70,90 @@ public static class UpdateManager
             }
         }
         return url == null ? null : new ReleaseInfo(Normalize(remote), tag, url);
+    }
+
+    /// <summary>Holt Tag, Notes-Text (Markdown) und Release-URL zu einer konkreten Version
+    /// (z. B. nach einem Update für die „Was ist neu"-Anzeige). Liefert null, wenn kein Release existiert.</summary>
+    public static async Task<(string Tag, string Body, string Url)?> GetReleaseNotesAsync(string version)
+    {
+        using var resp = await Http.GetAsync($"{RepoApi}/releases/tags/v{version}");
+        if (!resp.IsSuccessStatusCode) return null;
+        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var root = doc.RootElement;
+        return (root.GetProperty("tag_name").GetString() ?? ("v" + version),
+                root.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "",
+                root.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "");
+    }
+
+    /// <summary>Zeigt die Versionshinweise nach einem Update (nicht-modal).</summary>
+    public static void ShowNotesWindow(string tag, string markdownBody, string releaseUrl)
+    {
+        var heading = new TextBlock
+        {
+            Text = Loc.Tf("Neu in Version {0}", tag.TrimStart('v', 'V')),
+            FontSize = 16,
+            FontWeight = FontWeights.Bold,
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        var body = new TextBlock { Text = CleanMarkdown(markdownBody), TextWrapping = TextWrapping.Wrap };
+        var scroll = new ScrollViewer
+        {
+            Content = body,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            MaxHeight = 340,
+            Margin = new Thickness(0, 0, 0, 14)
+        };
+        var openPage = new Button { Content = Loc.T("Release-Seite öffnen"), Padding = new Thickness(14, 5, 14, 5) };
+        var close = new Button { Content = Loc.T("Schließen"), Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(8, 0, 0, 0), IsDefault = true, IsCancel = true };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        buttons.Children.Add(openPage);
+        buttons.Children.Add(close);
+        var panel = new StackPanel { Margin = new Thickness(16) };
+        panel.Children.Add(heading);
+        panel.Children.Add(scroll);
+        panel.Children.Add(buttons);
+
+        var win = new Window
+        {
+            Title = Loc.Tf("Neu in Version {0}", tag.TrimStart('v', 'V')) + " – " + AppInfo.DisplayName,
+            Content = panel,
+            Width = 560,
+            SizeToContent = SizeToContent.Height,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Topmost = true,
+            ShowInTaskbar = true,
+            Icon = Branding.CreateImageSource(64, Branding.Accent)
+        };
+        openPage.Click += (_, _) =>
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(releaseUrl) { UseShellExecute = true }); }
+            catch { /* Browser nicht verfügbar */ }
+        };
+        close.Click += (_, _) => win.Close();
+        win.Show();
+    }
+
+    /// <summary>Sehr leichte Markdown-Aufbereitung für die Textanzeige (Fett-/Code-Zeichen und
+    /// Überschriften-Präfixe entfernen, Listenpunkte hübschen). Kein vollwertiger Renderer nötig.</summary>
+    private static string CleanMarkdown(string md)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var raw in (md ?? "").Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = raw.Replace("**", "").Replace("`", "");
+            if (line.StartsWith("### ")) line = line[4..];
+            else if (line.StartsWith("## ")) line = line[3..];
+            else if (line.StartsWith("# ")) line = line[2..];
+            if (line.StartsWith("> ")) line = line[2..];
+            if (line.TrimStart().StartsWith("- "))
+            {
+                int indent = line.Length - line.TrimStart().Length;
+                line = new string(' ', indent) + "• " + line.TrimStart()[2..];
+            }
+            sb.AppendLine(line);
+        }
+        return sb.ToString().Trim();
     }
 
     /// <summary>Update-Hinweis mit den zwei gewünschten Optionen. Liefert true = jetzt aktualisieren.</summary>

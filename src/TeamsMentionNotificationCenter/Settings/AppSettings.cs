@@ -137,6 +137,8 @@ public sealed class AppSettings
     /// <summary>Gefundene Updates ohne Nachfrage im Hintergrund installieren (Zustand wird über den
     /// Neustart hinweg wiederhergestellt). Zusätzlich wird periodisch (alle 6 h) geprüft.</summary>
     public bool SilentAutoUpdate { get; set; } = true;
+    /// <summary>Nach einem Update einmalig die Versionshinweise (Release-Notes) der neuen Version anzeigen.</summary>
+    public bool ShowNotesAfterUpdate { get; set; } = true;
     /// <summary>Beim Start von einem „portablen" Ort die Installation nach %LOCALAPPDATA%\Programs anbieten.</summary>
     public bool OfferInstallOnStartup { get; set; } = true;
     /// <summary>Master-Schalter: Erkennung aktiv?</summary>
@@ -253,6 +255,7 @@ public sealed class AppSettings
         StartWithWindows = s.StartWithWindows;
         CheckUpdatesOnStartup = s.CheckUpdatesOnStartup;
         SilentAutoUpdate = s.SilentAutoUpdate;
+        ShowNotesAfterUpdate = s.ShowNotesAfterUpdate;
         OfferInstallOnStartup = s.OfferInstallOnStartup;
         DetectionEnabled = s.DetectionEnabled;
         StartInConversationMode = s.StartInConversationMode;

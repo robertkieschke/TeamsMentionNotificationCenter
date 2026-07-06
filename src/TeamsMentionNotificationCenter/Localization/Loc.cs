@@ -169,6 +169,10 @@ public static class Loc
              "Installa gli aggiornamenti automaticamente in background (senza chiedere)"),
         ["Update wird im Hintergrund installiert …"] =
             ("Installing update in the background …", "Installazione dell'aggiornamento in background …"),
+        ["Nach einem Update die Versionshinweise anzeigen"] =
+            ("Show release notes after an update", "Mostra le note di rilascio dopo un aggiornamento"),
+        ["Neu in Version {0}"] = ("What's new in version {0}", "Novità nella versione {0}"),
+        ["Release-Seite öffnen"] = ("Open release page", "Apri la pagina del rilascio"),
         ["Installation nach %LOCALAPPDATA%\\Programs anbieten (bei portablem Start)"] =
             ("Offer installing to %LOCALAPPDATA%\\Programs (when started portable)",
              "Proponi l'installazione in %LOCALAPPDATA%\\Programs (quando avviata in modo portatile)"),

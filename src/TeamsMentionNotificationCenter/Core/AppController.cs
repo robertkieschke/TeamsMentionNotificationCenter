@@ -42,6 +42,10 @@ public sealed class AppController : IDisposable
     /// <summary>Nach einem Update-Neustart: Musik war von UNS pausiert (aus --resume-music-paused).</summary>
     public bool ResumeMusicPausedByUs { get; set; }
 
+    /// <summary>Version, VON der gerade aktualisiert wurde (aus --updated-from) – löst die
+    /// einmalige „Was ist neu"-Anzeige aus.</summary>
+    public string? UpdatedFromVersion { get; set; }
+
     public AppController(AppSettings settings, Dispatcher dispatcher)
     {
         _settings = settings;
@@ -103,12 +107,39 @@ public sealed class AppController : IDisposable
             periodicTimer.Tick += (_, _) => { if (_settings.SilentAutoUpdate) CheckForUpdates(manual: false); };
             periodicTimer.Start();
         }
+
+        // Nach einem Update einmalig die Versionshinweise der neuen Version anzeigen.
+        if (UpdatedFromVersion != null && _settings.ShowNotesAfterUpdate)
+        {
+            var notesTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            notesTimer.Tick += (_, _) => { notesTimer.Stop(); _ = ShowReleaseNotesAsync(); };
+            notesTimer.Start();
+        }
+    }
+
+    private async Task ShowReleaseNotesAsync()
+    {
+        try
+        {
+            var notes = await UpdateManager.GetReleaseNotesAsync(AppInfo.Version);
+            if (notes == null || string.IsNullOrWhiteSpace(notes.Value.Body))
+            {
+                Logger.Log("Versionshinweise: kein Release(-Text) zur aktuellen Version gefunden.");
+                return;
+            }
+            Logger.Log($"Zeige Versionshinweise für {notes.Value.Tag} (Update von {UpdatedFromVersion}).");
+            UpdateManager.ShowNotesWindow(notes.Value.Tag, notes.Value.Body, notes.Value.Url);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("Versionshinweise fehlgeschlagen: " + ex.Message);
+        }
     }
 
     /// <summary>Argumente für den Neustart nach einem Update, damit die neue Instanz den
     /// aktuellen Zustand nahtlos wiederherstellt.</summary>
     private string BuildResumeArguments() =>
-        $"--resume-mode={Mode}" + (_audio.MusicPausedByUs ? " --resume-music-paused" : "");
+        $"--resume-mode={Mode} --updated-from={AppInfo.Version}" + (_audio.MusicPausedByUs ? " --resume-music-paused" : "");
 
     /// <summary>Update-Prüfung. Bei manueller Prüfung (Tray) gibt es IMMER eine Rückmeldung,
     /// beim Start-Check nur, wenn tatsächlich eine neue Version existiert.</summary>

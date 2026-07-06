@@ -50,6 +50,7 @@ public partial class App : Application
         // Nach einem (Silent-)Update-Neustart: vorherigen Zustand aus den Argumenten wiederherstellen.
         AppMode? resumeMode = null;
         bool resumeMusicPaused = false;
+        string? updatedFrom = null;
         foreach (var arg in e.Args)
         {
             if (arg.StartsWith("--resume-mode=", StringComparison.OrdinalIgnoreCase) &&
@@ -57,9 +58,11 @@ public partial class App : Application
                 resumeMode = m;
             else if (string.Equals(arg, "--resume-music-paused", StringComparison.OrdinalIgnoreCase))
                 resumeMusicPaused = true;
+            else if (arg.StartsWith("--updated-from=", StringComparison.OrdinalIgnoreCase))
+                updatedFrom = arg["--updated-from=".Length..];
         }
         if (resumeMode != null)
-            Core.Logger.Log($"Neustart nach Update – Zustand wird wiederhergestellt (Modus {resumeMode}, MusikPausiert={resumeMusicPaused}).");
+            Core.Logger.Log($"Neustart nach Update – Zustand wird wiederhergestellt (Modus {resumeMode}, MusikPausiert={resumeMusicPaused}, von Version {updatedFrom ?? "?"}).");
 
         // Portabel gestartet (z. B. aus Downloads)? Installation nach %LOCALAPPDATA%\Programs anbieten.
         // (Nicht beim automatischen Neustart nach einem Update – der soll lautlos bleiben.)
@@ -79,7 +82,8 @@ public partial class App : Application
         _controller = new AppController(settings, Dispatcher)
         {
             ResumeMode = resumeMode,
-            ResumeMusicPausedByUs = resumeMusicPaused
+            ResumeMusicPausedByUs = resumeMusicPaused,
+            UpdatedFromVersion = updatedFrom
         };
         _controller.Start();
     }
