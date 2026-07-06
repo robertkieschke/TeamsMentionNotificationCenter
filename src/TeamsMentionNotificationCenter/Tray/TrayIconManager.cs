@@ -23,6 +23,7 @@ public sealed class TrayIconManager : IDisposable
     private readonly MenuItem _testItem;
     private readonly MenuItem _settingsItem;
     private readonly MenuItem _reloadItem;
+    private readonly MenuItem _updateItem;
     private readonly MenuItem _exitItem;
     private IntPtr _hIcon;
 
@@ -37,6 +38,7 @@ public sealed class TrayIconManager : IDisposable
         Action onEnterQuiet,
         Action onOpenSettings,
         Action onReloadSettings,
+        Action onCheckUpdates,
         Action onExit)
     {
         _detectionEnabled = settings.DetectionEnabled;
@@ -55,6 +57,8 @@ public sealed class TrayIconManager : IDisposable
         _settingsItem.Click += (_, _) => onOpenSettings();
         _reloadItem = new MenuItem();
         _reloadItem.Click += (_, _) => onReloadSettings();
+        _updateItem = new MenuItem();
+        _updateItem.Click += (_, _) => onCheckUpdates();
         _exitItem = new MenuItem();
         _exitItem.Click += (_, _) => onExit();
 
@@ -69,6 +73,7 @@ public sealed class TrayIconManager : IDisposable
         menu.Items.Add(new Separator());
         menu.Items.Add(_settingsItem);
         menu.Items.Add(_reloadItem);
+        menu.Items.Add(_updateItem);
         menu.Items.Add(_exitItem);
 
         // Fix für das „Aufblitzen" beim Rechtsklick: Eine App ohne sichtbares Fenster ist beim Öffnen des
@@ -103,6 +108,7 @@ public sealed class TrayIconManager : IDisposable
         _testItem.Header = Loc.T("Test: Glow auslösen");
         _settingsItem.Header = Loc.T("Einstellungen…");
         _reloadItem.Header = Loc.T("Einstellungen neu laden (aus Datei)");
+        _updateItem.Header = Loc.T("Auf Updates prüfen …");
         _exitItem.Header = Loc.T("Beenden");
         _modeItem.Header = Loc.T(_mode == AppMode.Conversation ? "Modus: Gespräch" : "Modus: Ruhe");
     }

@@ -74,6 +74,7 @@ public sealed class SettingsWindow : Window
     private readonly CheckBox _autoReturnManual = new() { Content = Loc.T("Auto-Rückkehr auch bei manueller Aktivierung (Shortcut/Menü)") };
     private readonly CheckBox _detection = new() { Content = Loc.T("Erkennung aktiv") };
     private readonly CheckBox _autostart = new() { Content = Loc.T("Mit Windows starten") };
+    private readonly CheckBox _checkUpdates = new() { Content = Loc.T("Beim Start auf Updates prüfen") };
     private readonly CheckBox _debug = new() { Content = Loc.T("Debug-Log schreiben (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)") };
     private readonly TextBox _pollInterval = Num();
 
@@ -273,10 +274,11 @@ public sealed class SettingsWindow : Window
                 _autoReturnManual,
                 _detection,
                 _autostart,
+                _checkUpdates,
                 _debug,
                 Row(Loc.T("Poll-Intervall (ms):"), _pollInterval)
             },
-            new FrameworkElement[] { _language, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _detection, _autostart, _debug, _pollInterval }));
+            new FrameworkElement[] { _language, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _detection, _autostart, _checkUpdates, _debug, _pollInterval }));
 
         tabControl.Items.Add(BuildInfoTab());
 
@@ -456,6 +458,7 @@ public sealed class SettingsWindow : Window
         _autoReturnManual.IsChecked = s.AutoReturnAlsoWhenManual;
         _detection.IsChecked = s.DetectionEnabled;
         _autostart.IsChecked = s.StartWithWindows;
+        _checkUpdates.IsChecked = s.CheckUpdatesOnStartup;
         _debug.IsChecked = s.DebugLogging;
         _pollInterval.Text = s.PollIntervalMs.ToString();
     }
@@ -532,6 +535,7 @@ public sealed class SettingsWindow : Window
         s.AutoReturnAlsoWhenManual = _autoReturnManual.IsChecked == true;
         s.DetectionEnabled = _detection.IsChecked == true;
         s.StartWithWindows = _autostart.IsChecked == true;
+        s.CheckUpdatesOnStartup = _checkUpdates.IsChecked == true;
         s.DebugLogging = _debug.IsChecked == true;
         s.PollIntervalMs = ParseInt(_pollInterval.Text, s.PollIntervalMs, 150, 5000);
 

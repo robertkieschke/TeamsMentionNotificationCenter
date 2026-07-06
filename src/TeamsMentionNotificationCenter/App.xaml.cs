@@ -22,19 +22,29 @@ public partial class App : Application
 
         // Nur eine Instanz zulassen: Der Mutex lebt so lange wie der Prozess; stürzt die App ab,
         // räumt Windows das Kernel-Objekt automatisch weg. Ohne Prefix gilt er pro Benutzersitzung.
+        // Ist der Mutex belegt, kurz warten: Beim Selbst-Update startet die neue Instanz, während
+        // die alte sich gerade beendet – sie soll dann übernehmen statt sich wegzumelden.
         _singleInstanceMutex = new System.Threading.Mutex(true, "TeamsMentionNotificationCenter_SingleInstance", out bool isFirstInstance);
         if (!isFirstInstance)
         {
-            _singleInstanceMutex.Dispose();
-            _singleInstanceMutex = null;
-            MessageBox.Show(
-                Localization.Loc.T("Die Anwendung läuft bereits – du findest sie als Symbol im Infobereich der Taskleiste (Tray). Diese zusätzliche Instanz wird jetzt beendet."),
-                AppInfo.DisplayName,
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            Shutdown();
-            return;
+            bool acquired = false;
+            try { acquired = _singleInstanceMutex.WaitOne(TimeSpan.FromSeconds(4)); }
+            catch (System.Threading.AbandonedMutexException) { acquired = true; } // Vorgänger hart beendet -> übernehmen
+            if (!acquired)
+            {
+                _singleInstanceMutex.Dispose();
+                _singleInstanceMutex = null;
+                MessageBox.Show(
+                    Localization.Loc.T("Die Anwendung läuft bereits – du findest sie als Symbol im Infobereich der Taskleiste (Tray). Diese zusätzliche Instanz wird jetzt beendet."),
+                    AppInfo.DisplayName,
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                Shutdown();
+                return;
+            }
         }
+
+        UpdateManager.CleanupAfterUpdate();
 
         // Erststart: settings.json anlegen, damit sie leicht auffindbar/bearbeitbar ist.
         if (!System.IO.File.Exists(AppSettings.SettingsPath))
@@ -47,14 +57,20 @@ public partial class App : Application
         _controller.Start();
     }
 
+    /// <summary>Gibt den Single-Instance-Mutex frei, damit die vom Selbst-Update gestartete
+    /// neue Instanz sofort übernehmen kann.</summary>
+    public void ReleaseSingleInstanceMutex()
+    {
+        if (_singleInstanceMutex == null) return;
+        try { _singleInstanceMutex.ReleaseMutex(); } catch { /* nicht im Besitz -> egal */ }
+        _singleInstanceMutex.Dispose();
+        _singleInstanceMutex = null;
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         _controller?.Dispose();
-        if (_singleInstanceMutex != null)
-        {
-            try { _singleInstanceMutex.ReleaseMutex(); } catch { /* nicht im Besitz -> egal */ }
-            _singleInstanceMutex.Dispose();
-        }
+        ReleaseSingleInstanceMutex();
         base.OnExit(e);
     }
 }

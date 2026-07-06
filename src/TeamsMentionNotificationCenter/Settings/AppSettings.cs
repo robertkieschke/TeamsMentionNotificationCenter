@@ -132,6 +132,8 @@ public sealed class AppSettings
     /// <summary>Poll-Intervall für die Transkript-Quelle (ms).</summary>
     public int PollIntervalMs { get; set; } = 500;
     public bool StartWithWindows { get; set; } = false;
+    /// <summary>Beim Programmstart auf eine neue Version prüfen (GitHub-Releases).</summary>
+    public bool CheckUpdatesOnStartup { get; set; } = true;
     /// <summary>Master-Schalter: Erkennung aktiv?</summary>
     public bool DetectionEnabled { get; set; } = true;
 
@@ -244,6 +246,7 @@ public sealed class AppSettings
         TranscriptSource = s.TranscriptSource;
         PollIntervalMs = s.PollIntervalMs;
         StartWithWindows = s.StartWithWindows;
+        CheckUpdatesOnStartup = s.CheckUpdatesOnStartup;
         DetectionEnabled = s.DetectionEnabled;
         StartInConversationMode = s.StartInConversationMode;
         Language = s.Language;

@@ -163,6 +163,20 @@ public static class Loc
         ["Auto-Rückkehr auch bei manueller Aktivierung (Shortcut/Menü)"] =
             ("Auto-return also on manual activation (shortcut/menu)", "Ritorno automatico anche con attivazione manuale (scorciatoia/menu)"),
         ["Mit Windows starten"] = ("Start with Windows", "Avvia con Windows"),
+        ["Beim Start auf Updates prüfen"] = ("Check for updates at startup", "Cerca aggiornamenti all'avvio"),
+        ["Auf Updates prüfen …"] = ("Check for updates …", "Cerca aggiornamenti …"),
+        ["Eine neue Version {0} ist verfügbar (installiert: {1}). Jetzt aktualisieren? Die Anwendung startet danach automatisch neu."] =
+            ("A new version {0} is available (installed: {1}). Update now? The application will restart automatically afterwards.",
+             "È disponibile una nuova versione {0} (installata: {1}). Aggiornare ora? L'applicazione si riavvierà automaticamente."),
+        ["Jetzt aktualisieren"] = ("Update now", "Aggiorna ora"),
+        ["Später"] = ("Later", "Più tardi"),
+        ["Du verwendest bereits die neueste Version ({0})."] =
+            ("You are already using the latest version ({0}).", "Stai già usando la versione più recente ({0})."),
+        ["Update fehlgeschlagen: {0}"] = ("Update failed: {0}", "Aggiornamento non riuscito: {0}"),
+        ["Update wird heruntergeladen …"] = ("Downloading update …", "Download dell'aggiornamento in corso …"),
+        ["Der Programmordner ist nicht beschreibbar – verschiebe die App z. B. nach %LOCALAPPDATA%\\Programs, damit sie sich selbst aktualisieren kann."] =
+            ("The application folder is not writable – move the app e.g. to %LOCALAPPDATA%\\Programs so it can update itself.",
+             "La cartella dell'applicazione non è scrivibile – sposta l'app ad es. in %LOCALAPPDATA%\\Programs perché possa aggiornarsi da sola."),
         ["Debug-Log schreiben (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)"] =
             ("Write debug log (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)", "Scrivi log di debug (%APPDATA%\\TeamsMentionNotificationCenter\\log.txt)"),
         ["Poll-Intervall (ms):"] = ("Poll interval (ms):", "Intervallo di polling (ms):"),

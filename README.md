@@ -28,6 +28,10 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
 - **Optionaler Signalton** bei Erkennung (eigene WAV, Lautstärke und Ausgabegerät wählbar).
 - **System-Tray-Icon** mit Statusanzeige (grün = Gespräch, rot = Ruhe, grau = Erkennung aus) und Kontextmenü.
 - **Einstellungs-Oberfläche** mit Reitern, mehrsprachig (Deutsch/Englisch/Italienisch), Autostart mit Windows.
+- **Selbst-Update:** prüft beim Start (abschaltbar) und per Tray-Menü auf neue GitHub-Releases;
+  auf Wunsch lädt und installiert sich die App selbst und startet neu. Empfohlener Ablageort ist ein
+  benutzerbeschreibbarer Ordner wie `%LOCALAPPDATA%\Programs` (bewusst NICHT `C:\Programme` –
+  dort bräuchte jedes Update Adminrechte).
 - **Datensparsam:** Transkript nur lokal im RAM, nichts wird gespeichert/geloggt/gesendet.
 
 ## Voraussetzungen
@@ -103,6 +107,7 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Wichtigste Felder
 | `TriggerSoundEnabled` / `TriggerSoundFile` / `TriggerSoundVolume` / `TriggerSoundDeviceId` | Optionaler Signalton bei Erkennung. |
 | `HotkeyToggle` / `HotkeyQuiet` / `HotkeyConversation` / `HotkeyToggleDetection` | Globale Tastenkürzel. |
 | `StartInConversationMode` / `StartWithWindows` | Startverhalten / Autostart mit Windows. |
+| `CheckUpdatesOnStartup` | Beim Programmstart auf neue GitHub-Releases prüfen. |
 | `Language` | UI-Sprache (`De` / `En` / `It`). |
 
 ## Datenschutz

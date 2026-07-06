@@ -59,6 +59,7 @@ public sealed class AppController : IDisposable
             onEnterQuiet: () => SetMode(AppMode.Quiet),
             onOpenSettings: OpenSettingsWindow,
             onReloadSettings: ReloadSettingsFromDisk,
+            onCheckUpdates: () => CheckForUpdates(manual: true),
             onExit: () => System.Windows.Application.Current.Shutdown());
         _tray.UpdateStatus(Loc.T("Starte …"), false);
         _tray.SetDetection(_settings.DetectionEnabled);
@@ -81,6 +82,47 @@ public sealed class AppController : IDisposable
 
         // Startmodus: standardmäßig (manueller) Gesprächs-Modus – der erste Ruhe-Modus muss aktiv gewählt werden.
         SetMode(_settings.StartInConversationMode ? AppMode.Conversation : AppMode.Quiet, fromTrigger: false);
+
+        // Verzögert auf Updates prüfen (blockiert den Start nicht; meldet sich nur bei neuer Version).
+        if (_settings.CheckUpdatesOnStartup)
+        {
+            var updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+            updateTimer.Tick += (_, _) => { updateTimer.Stop(); CheckForUpdates(manual: false); };
+            updateTimer.Start();
+        }
+    }
+
+    /// <summary>Update-Prüfung. Bei manueller Prüfung (Tray) gibt es IMMER eine Rückmeldung,
+    /// beim Start-Check nur, wenn tatsächlich eine neue Version existiert.</summary>
+    private async void CheckForUpdates(bool manual)
+    {
+        try
+        {
+            var release = await UpdateManager.CheckAsync();
+            if (release == null)
+            {
+                if (manual)
+                    System.Windows.MessageBox.Show(
+                        Loc.Tf("Du verwendest bereits die neueste Version ({0}).", AppInfo.Version),
+                        AppInfo.DisplayName, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                return;
+            }
+
+            Logger.Log($"Update verfügbar: {release.Tag} (installiert: {AppInfo.Version})");
+            if (!UpdateManager.AskUser(release)) return; // „Später" – beim nächsten Start/der nächsten Prüfung erneut
+
+            await UpdateManager.DownloadAndRestartAsync(release,
+                status => _tray?.UpdateStatus(status, true),
+                releaseSingleInstance: () => (System.Windows.Application.Current as App)?.ReleaseSingleInstanceMutex());
+        }
+        catch (Exception ex)
+        {
+            Logger.Log($"Update-Prüfung/-Installation fehlgeschlagen: {ex.Message}");
+            if (manual)
+                System.Windows.MessageBox.Show(
+                    Loc.Tf("Update fehlgeschlagen: {0}", ex.Message),
+                    AppInfo.DisplayName, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+        }
     }
 
     private void OnCaptionReceived(object? sender, CaptionEventArgs e)
