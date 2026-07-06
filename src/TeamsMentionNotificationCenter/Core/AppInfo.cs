@@ -7,7 +7,7 @@ namespace TeamsMentionNotificationCenter.Core;
 public static class AppInfo
 {
     public const string DisplayName = "Teams Mention Notification Center";
-    public const string Version = "1.2.1";
+    public const string Version = "1.3.0";
 
     // Entwickler-/Impressum-Angaben (für den Info-Tab) – bei Bedarf anpassen.
     public const string Developer = "Robert H. Kieschke";
