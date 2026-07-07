@@ -501,7 +501,7 @@ public sealed class AppController : IDisposable
     public void ApplySettings(AppSettings fresh)
     {
         _settings.CopyFrom(fresh);
-        Loc.Language = _settings.Language;
+        Loc.Language = AppSettings.ResolveLanguage(_settings.Language);
         Logger.Enabled = _settings.DebugLogging;
         Theme.Apply(_settings.Theme);
         _matcher.UpdateFrom(_settings);

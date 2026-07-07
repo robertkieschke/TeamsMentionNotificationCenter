@@ -125,7 +125,7 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Die Felder im Üb
 | `ShowNotesAfterUpdate` | Nach einem Update einmalig die Versionshinweise anzeigen. |
 | `OfferInstallOnStartup` | Bei portablem Start die Installation nach `%LOCALAPPDATA%\Programs` anbieten. |
 | `PollIntervalMs` | Abtast-Intervall der Transkript-Überwachung. |
-| `Language` | UI-Sprache (`De` / `En` / `It`). |
+| `Language` | UI-Sprache: `System` (Windows-Anzeigesprache, Fallback Englisch) / `De` / `En` / `It`. |
 | `Theme` | Farbmodus: `System` / `Light` / `Dark`. |
 | `DebugLogging` | Diagnose-Log nach `%APPDATA%\TeamsMentionNotificationCenter\log.txt` (ohne Gesprächsinhalte). |
 

@@ -158,6 +158,7 @@ public sealed class SettingsWindow : Window
         _missedHorz.Items.Add(Loc.T("Links"));
         _missedHorz.Items.Add(Loc.T("Mitte"));
         _missedHorz.Items.Add(Loc.T("Rechts"));
+        _language.Items.Add(Loc.T("System"));
         _language.Items.Add("Deutsch");
         _language.Items.Add("English");
         _language.Items.Add("Italiano");
@@ -783,7 +784,13 @@ public sealed class SettingsWindow : Window
         _hotkeyDetection.Text = s.HotkeyToggleDetection;
         _hotkeyMissed.Text = s.HotkeyShowMissed;
 
-        _language.SelectedIndex = s.Language switch { AppLanguage.En => 1, AppLanguage.It => 2, _ => 0 };
+        _language.SelectedIndex = s.Language switch
+        {
+            AppLanguageMode.De => 1,
+            AppLanguageMode.En => 2,
+            AppLanguageMode.It => 3,
+            _ => 0
+        };
         _themeMode.SelectedIndex = s.Theme switch { AppThemeMode.Light => 1, AppThemeMode.Dark => 2, _ => 0 };
         _startInConversation.IsChecked = s.StartInConversationMode;
         _autoReturn.IsChecked = s.AutoReturnToQuietEnabled;
@@ -877,7 +884,13 @@ public sealed class SettingsWindow : Window
         s.HotkeyToggleDetection = _hotkeyDetection.Text.Trim();
         s.HotkeyShowMissed = _hotkeyMissed.Text.Trim();
 
-        s.Language = _language.SelectedIndex switch { 1 => AppLanguage.En, 2 => AppLanguage.It, _ => AppLanguage.De };
+        s.Language = _language.SelectedIndex switch
+        {
+            1 => AppLanguageMode.De,
+            2 => AppLanguageMode.En,
+            3 => AppLanguageMode.It,
+            _ => AppLanguageMode.System
+        };
         s.Theme = _themeMode.SelectedIndex switch { 1 => AppThemeMode.Light, 2 => AppThemeMode.Dark, _ => AppThemeMode.System };
         s.StartInConversationMode = _startInConversation.IsChecked == true;
         s.AutoReturnToQuietEnabled = _autoReturn.IsChecked == true;

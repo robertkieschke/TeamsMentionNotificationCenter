@@ -18,7 +18,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         var settings = AppSettings.Load();
-        Localization.Loc.Language = settings.Language;
+        Localization.Loc.Language = AppSettings.ResolveLanguage(settings.Language);
         Core.Logger.Enabled = settings.DebugLogging; // früh setzen, damit auch Install/Update-Schritte geloggt werden
         Core.Theme.Initialize(settings.Theme);       // vor dem ersten Fenster (Install-/Update-Dialoge)
 

@@ -36,6 +36,10 @@ public enum PersistentBorderMode
 /// <summary>Farbmodus der Oberfläche.</summary>
 public enum AppThemeMode { System, Light, Dark }
 
+/// <summary>Gespeicherte Sprachwahl. „System" folgt der Windows-Anzeigesprache
+/// (nicht unterstützte Sprachen fallen auf Englisch zurück).</summary>
+public enum AppLanguageMode { System, De, En, It }
+
 /// <summary>Vertikale Position der Einblendung auf dem Bildschirm.</summary>
 public enum BannerVertical { Top, Center, Bottom }
 
@@ -166,8 +170,8 @@ public sealed class AppSettings
     /// <summary>Beim Start im (manuellen) Gesprächs-Modus starten; der erste Ruhe-Modus muss aktiv gewählt werden.</summary>
     public bool StartInConversationMode { get; set; } = true;
 
-    /// <summary>UI-Sprache.</summary>
-    public AppLanguage Language { get; set; } = AppLanguage.De;
+    /// <summary>UI-Sprache (System = Windows-Anzeigesprache, Fallback Englisch).</summary>
+    public AppLanguageMode Language { get; set; } = AppLanguageMode.System;
 
     /// <summary>Farbmodus der Oberfläche (System folgt der Windows-Einstellung).</summary>
     public AppThemeMode Theme { get; set; } = AppThemeMode.System;
@@ -205,12 +209,17 @@ public sealed class AppSettings
         {
             // Beschädigte Datei -> Defaults verwenden (überschreibt erst beim nächsten Save).
         }
-        // Allererster Start (noch keine Datei): UI-Sprache aus der Windows-Anzeigesprache ableiten.
-        return new AppSettings
-        {
-            Language = LanguageForCulture(System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
-        };
+        return new AppSettings(); // Standard-Sprachwahl „System" folgt der Windows-Anzeigesprache
     }
+
+    /// <summary>Löst die gespeicherte Sprachwahl in die effektive UI-Sprache auf.</summary>
+    public static AppLanguage ResolveLanguage(AppLanguageMode mode) => mode switch
+    {
+        AppLanguageMode.De => AppLanguage.De,
+        AppLanguageMode.En => AppLanguage.En,
+        AppLanguageMode.It => AppLanguage.It,
+        _ => LanguageForCulture(System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
+    };
 
     /// <summary>Ordnet einen ISO-Sprachcode einer unterstützten UI-Sprache zu –
     /// nicht unterstützte Sprachen fallen auf Englisch zurück.</summary>
