@@ -203,8 +203,22 @@ public sealed class AppSettings
         {
             // Beschädigte Datei -> Defaults verwenden (überschreibt erst beim nächsten Save).
         }
-        return new AppSettings();
+        // Allererster Start (noch keine Datei): UI-Sprache aus der Windows-Anzeigesprache ableiten.
+        return new AppSettings
+        {
+            Language = LanguageForCulture(System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
+        };
     }
+
+    /// <summary>Ordnet einen ISO-Sprachcode einer unterstützten UI-Sprache zu –
+    /// nicht unterstützte Sprachen fallen auf Englisch zurück.</summary>
+    public static AppLanguage LanguageForCulture(string twoLetterIsoLanguage) =>
+        (twoLetterIsoLanguage ?? "").ToLowerInvariant() switch
+        {
+            "de" => AppLanguage.De,
+            "it" => AppLanguage.It,
+            _ => AppLanguage.En
+        };
 
     public void Save()
     {
