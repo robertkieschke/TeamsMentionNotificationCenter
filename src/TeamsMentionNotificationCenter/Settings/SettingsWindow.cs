@@ -67,6 +67,7 @@ public sealed class SettingsWindow : Window
     private readonly TextBox _hotkeyQuiet = new() { Width = 160, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBox _hotkeyConv = new() { Width = 160, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly TextBox _hotkeyDetection = new() { Width = 160, HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly TextBox _hotkeyMissed = new() { Width = 160, HorizontalAlignment = HorizontalAlignment.Left };
 
     private readonly ComboBox _language = Combo();
     private readonly ComboBox _themeMode = Combo();
@@ -298,9 +299,10 @@ public sealed class SettingsWindow : Window
                       Row(Loc.T("Umschalten Ruhe/Gespräch:"), _hotkeyToggle),
                       Row(Loc.T("In Ruhe-Modus:"), _hotkeyQuiet),
                       Row(Loc.T("In Gesprächs-Modus:"), _hotkeyConv),
-                      Row(Loc.T("Erkennung an/aus:"), _hotkeyDetection))
+                      Row(Loc.T("Erkennung an/aus:"), _hotkeyDetection),
+                      Row(Loc.T("Verpasste Erwähnungen anzeigen:"), _hotkeyMissed))
             },
-            new FrameworkElement[] { _hotkeyToggle, _hotkeyQuiet, _hotkeyConv, _hotkeyDetection }));
+            new FrameworkElement[] { _hotkeyToggle, _hotkeyQuiet, _hotkeyConv, _hotkeyDetection, _hotkeyMissed }));
 
         tabControl.Items.Add(MakeTab(Loc.T("Sonstiges"), "",
             new UIElement[]
@@ -779,6 +781,7 @@ public sealed class SettingsWindow : Window
         _hotkeyQuiet.Text = s.HotkeyQuiet;
         _hotkeyConv.Text = s.HotkeyConversation;
         _hotkeyDetection.Text = s.HotkeyToggleDetection;
+        _hotkeyMissed.Text = s.HotkeyShowMissed;
 
         _language.SelectedIndex = s.Language switch { AppLanguage.En => 1, AppLanguage.It => 2, _ => 0 };
         _themeMode.SelectedIndex = s.Theme switch { AppThemeMode.Light => 1, AppThemeMode.Dark => 2, _ => 0 };
@@ -872,6 +875,7 @@ public sealed class SettingsWindow : Window
         s.HotkeyQuiet = _hotkeyQuiet.Text.Trim();
         s.HotkeyConversation = _hotkeyConv.Text.Trim();
         s.HotkeyToggleDetection = _hotkeyDetection.Text.Trim();
+        s.HotkeyShowMissed = _hotkeyMissed.Text.Trim();
 
         s.Language = _language.SelectedIndex switch { 1 => AppLanguage.En, 2 => AppLanguage.It, _ => AppLanguage.De };
         s.Theme = _themeMode.SelectedIndex switch { 1 => AppThemeMode.Light, 2 => AppThemeMode.Dark, _ => AppThemeMode.System };

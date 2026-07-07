@@ -143,6 +143,8 @@ public sealed class AppSettings
     public string HotkeyQuiet { get; set; } = "Ctrl+Alt+Q";
     public string HotkeyConversation { get; set; } = "Ctrl+Alt+G";
     public string HotkeyToggleDetection { get; set; } = "Ctrl+Alt+E";
+    /// <summary>Öffnet das Overlay der verpassten Erwähnungen.</summary>
+    public string HotkeyShowMissed { get; set; } = "Ctrl+Alt+V";
 
     // --- Quelle / Start ---
     public TranscriptSourceKind TranscriptSource { get; set; } = TranscriptSourceKind.Auto;
@@ -292,6 +294,7 @@ public sealed class AppSettings
         HotkeyQuiet = s.HotkeyQuiet;
         HotkeyConversation = s.HotkeyConversation;
         HotkeyToggleDetection = s.HotkeyToggleDetection;
+        HotkeyShowMissed = s.HotkeyShowMissed;
         TranscriptSource = s.TranscriptSource;
         PollIntervalMs = s.PollIntervalMs;
         StartWithWindows = s.StartWithWindows;

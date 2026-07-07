@@ -412,6 +412,21 @@ public sealed class AppController : IDisposable
         TryRegister(_settings.HotkeyQuiet, () => SetMode(AppMode.Quiet), "Ruhe");
         TryRegister(_settings.HotkeyConversation, () => SetMode(AppMode.Conversation), "Gespräch");
         TryRegister(_settings.HotkeyToggleDetection, ToggleDetection, "Erkennung an/aus");
+        TryRegister(_settings.HotkeyShowMissed, ShowMissedOverlay, "Verpasste Erwähnungen");
+    }
+
+    private void ShowMissedOverlay()
+    {
+        if (_mentions.UnfinishedCount > 0)
+        {
+            Logger.Log($"Hotkey: Verpasst-Overlay geöffnet ({_mentions.UnfinishedCount} offen)");
+            _mentionOverlay.ShowOverlay();
+        }
+        else
+        {
+            Logger.Log("Hotkey: keine verpassten Erwähnungen (Feedback im Tray)");
+            _tray?.UpdateStatus(Loc.T("Keine verpassten Erwähnungen."), true); // Feedback statt stillem Nichts
+        }
     }
 
     private void TryRegister(string combo, Action action, string label)

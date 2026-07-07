@@ -85,7 +85,7 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
   Sonstiges · Release Notes · Info) – die Sprache ist zwischen Deutsch, Englisch und Italienisch umschaltbar.
   Ungespeicherte Änderungen werden blau markiert; „Übernehmen" speichert, „Verwerfen" setzt zurück.
 - **Standard-Hotkeys** (frei änderbar): `Ctrl+Alt+T` Modus umschalten · `Ctrl+Alt+Q` Ruhe ·
-  `Ctrl+Alt+G` Gespräch · `Ctrl+Alt+E` Erkennung an/aus.
+  `Ctrl+Alt+G` Gespräch · `Ctrl+Alt+E` Erkennung an/aus · `Ctrl+Alt+V` Verpasste Erwähnungen anzeigen.
 - **Release Notes:** Tray → *Release Notes anzeigen* öffnet die Einstellungen direkt im Reiter
   *Release Notes* – alle Versionen untereinander (neueste zuerst), in der eingestellten Sprache.
 
@@ -118,7 +118,7 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Die Felder im Üb
 | `MentionRepeatMinutes` / `MentionRetentionDays` | Mindestabstand für neue Einträge derselben Person; Auto-Löschung nach X Tagen. |
 | `MentionOverlayVertical` / `MentionOverlayHorizontal` | Position des Verpasst-Overlays (Farben kommen aus dem Farbmodus). |
 | `SnoozePresetsMinutes` | Auswahlwerte für „Erinnere mich in X Minuten". |
-| `HotkeyToggle` / `HotkeyQuiet` / `HotkeyConversation` / `HotkeyToggleDetection` | Globale Tastenkürzel. |
+| `HotkeyToggle` / `HotkeyQuiet` / `HotkeyConversation` / `HotkeyToggleDetection` / `HotkeyShowMissed` | Globale Tastenkürzel. |
 | `StartInConversationMode` / `StartWithWindows` | Startverhalten / Autostart mit Windows. |
 | `CheckUpdatesOnStartup` | Beim Programmstart auf neue GitHub-Releases prüfen. |
 | `SilentAutoUpdate` | Updates ohne Nachfrage im Hintergrund installieren (Modus wird wiederhergestellt). |

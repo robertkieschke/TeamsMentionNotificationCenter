@@ -190,6 +190,8 @@ public static class Loc
         ["In Ruhe-Modus:"] = ("To quiet mode:", "Alla modalità silenziosa:"),
         ["In Gesprächs-Modus:"] = ("To conversation mode:", "Alla modalità conversazione:"),
         ["Erkennung an/aus:"] = ("Toggle detection on/off:", "Attiva/disattiva rilevamento:"),
+        ["Verpasste Erwähnungen anzeigen:"] = ("Show missed mentions:", "Mostra menzioni perse:"),
+        ["Keine verpassten Erwähnungen."] = ("No missed mentions.", "Nessuna menzione persa."),
 
         // --- Sonstiges ---
         ["Sprache:"] = ("Language:", "Lingua:"),
