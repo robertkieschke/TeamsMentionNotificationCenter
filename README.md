@@ -37,8 +37,12 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
 - **Globale Hotkeys:** Modus umschalten, Ruhe, Gespräch, Erkennung an/aus – frei belegbar.
   AltGr-sicher umgesetzt: Zeichen wie `@` und `€` (AltGr+Q/E) funktionieren trotz `Ctrl+Alt`-Kürzeln.
 - **System-Tray-Icon** mit Statusanzeige (grün = Gespräch, rot = Ruhe, grau = Erkennung aus) und
-  Kontextmenü (Modus, Erkennung, Glow-Test, Einstellungen, Update-Prüfung, Release Notes, Beenden).
-- **Einstellungs-Oberfläche** mit neun Reitern, mehrsprachig (Deutsch/Englisch/Italienisch),
+  Kontextmenü (Modus, Erkennung, Verpasste Erwähnungen, Glow-Test, Einstellungen, Update-Prüfung,
+  Release Notes, Beenden). Doppelklick öffnet die Einstellungen.
+- **Windows-11-Design:** Einstellungsfenster im Stil der Windows-Einstellungen – Seitennavigation
+  mit Icons, Einstellungen als Kacheln, gestylte Menüs und dünne, animierte Scrollbars.
+  **Farbmodus Hell / Dunkel / System** (folgt der Windows-Einstellung live, inkl. dunkler Titelleisten).
+- **Einstellungs-Oberfläche** mit zehn Bereichen, mehrsprachig (Deutsch/Englisch/Italienisch),
   blaue Markierung ungespeicherter Änderungen, Autostart mit Windows.
 - **Selbst-Update:** prüft beim Start (abschaltbar) und per Tray-Menü auf neue GitHub-Releases.
   Standardmäßig installieren sich Updates **still im Hintergrund** (zusätzlich alle 6 h geprüft);
@@ -77,8 +81,8 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
 
 - **Einstellungen** öffnest du per **Doppelklick aufs Tray-Icon** oder über das Tray-Menü.
   Alle Parameter sind dort in Reitern editierbar
-  (Erkennung · Ton & Musik · Glow-Rand · Einblendung · Signalton · Tastenkürzel · Sonstiges ·
-  Release Notes · Info) – die Sprache ist zwischen Deutsch, Englisch und Italienisch umschaltbar.
+  (Verpasst · Erkennung · Ton & Musik · Glow-Rand · Einblendung · Signalton · Tastenkürzel ·
+  Sonstiges · Release Notes · Info) – die Sprache ist zwischen Deutsch, Englisch und Italienisch umschaltbar.
   Ungespeicherte Änderungen werden blau markiert; „Übernehmen" speichert, „Verwerfen" setzt zurück.
 - **Standard-Hotkeys** (frei änderbar): `Ctrl+Alt+T` Modus umschalten · `Ctrl+Alt+Q` Ruhe ·
   `Ctrl+Alt+G` Gespräch · `Ctrl+Alt+E` Erkennung an/aus.
@@ -112,7 +116,7 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Die Felder im Üb
 | `TriggerSoundEnabled` / `TriggerSoundFile` / `TriggerSoundVolume` / `TriggerSoundDeviceId` | Optionaler Signalton bei Erkennung. |
 | `MissedMentionsEnabled` / `MentionAnswerTimeoutSeconds` | Verpasste Erwähnungen erfassen; ohne eigene Antwort innerhalb dieser Zeit entsteht ein Eintrag. |
 | `MentionRepeatMinutes` / `MentionRetentionDays` | Mindestabstand für neue Einträge derselben Person; Auto-Löschung nach X Tagen. |
-| `MentionOverlayVertical` / `MentionOverlayHorizontal` / `MentionOverlayColorHex` / `MentionOverlayOpacityPercent` | Position und Aussehen des Verpasst-Overlays. |
+| `MentionOverlayVertical` / `MentionOverlayHorizontal` | Position des Verpasst-Overlays (Farben kommen aus dem Farbmodus). |
 | `SnoozePresetsMinutes` | Auswahlwerte für „Erinnere mich in X Minuten". |
 | `HotkeyToggle` / `HotkeyQuiet` / `HotkeyConversation` / `HotkeyToggleDetection` | Globale Tastenkürzel. |
 | `StartInConversationMode` / `StartWithWindows` | Startverhalten / Autostart mit Windows. |
@@ -122,6 +126,7 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Die Felder im Üb
 | `OfferInstallOnStartup` | Bei portablem Start die Installation nach `%LOCALAPPDATA%\Programs` anbieten. |
 | `PollIntervalMs` | Abtast-Intervall der Transkript-Überwachung. |
 | `Language` | UI-Sprache (`De` / `En` / `It`). |
+| `Theme` | Farbmodus: `System` / `Light` / `Dark`. |
 | `DebugLogging` | Diagnose-Log nach `%APPDATA%\TeamsMentionNotificationCenter\log.txt` (ohne Gesprächsinhalte). |
 
 **Mehrsprachige Release-Notes:** Werden die Notes eines Releases mit den Abschnitten `## Deutsch`,
@@ -174,6 +179,7 @@ src/TeamsMentionNotificationCenter/
   Core/AppController.cs              Zustandsautomat (Ruhe ↔ Gespräch) + Verdrahtung
   Core/UpdateManager.cs              Update-Prüfung, Silent-/Dialog-Update, Release-Notes-Abruf
   Core/InstallManager.cs             Installations-Angebot nach %LOCALAPPDATA%\Programs
+  Core/Theme.cs                      Win11-Design: Farbmodi, Fluent-Styles, Kacheln, dunkle Titelleisten
   Core/SoundNotifier.cs              Signalton bei Erkennung (WASAPI, Gerät/Lautstärke)
   Core/AutostartManager.cs           Autostart über HKCU-Run-Schlüssel
   Core/Branding.cs                   Logo & Tray-Icon (programmatisch gezeichnet)
