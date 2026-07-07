@@ -16,6 +16,7 @@ namespace TeamsMentionNotificationCenter.Settings;
 public sealed class SettingsWindow : Window
 {
     private readonly AppSettings _current;
+    private readonly Core.MentionStore _mentionStore;
     private readonly Action<AppSettings> _onApply;
     private readonly Action<AppSettings> _onTestGlow;
     private readonly Action<AppSettings> _onTestBanner;
@@ -68,6 +69,7 @@ public sealed class SettingsWindow : Window
     private readonly TextBox _hotkeyDetection = new() { Width = 160, HorizontalAlignment = HorizontalAlignment.Left };
 
     private readonly ComboBox _language = Combo();
+    private readonly ComboBox _themeMode = Combo();
     private readonly CheckBox _startInConversation = new() { Content = Loc.T("Beim Start im Gesprächs-Modus starten (erster Ruhe-Modus muss aktiv gewählt werden)") };
     private readonly CheckBox _autoReturn = new() { Content = Loc.T("Automatisch zurück in den Ruhe-Modus, wenn ich eine Zeit lang nichts sage") };
     private readonly TextBox _autoReturnSec = Num();
@@ -105,23 +107,38 @@ public sealed class SettingsWindow : Window
 
     private readonly List<TabItem> _tabs = new();
     private readonly Dictionary<FrameworkElement, TabItem> _tabOf = new();
+    private readonly Dictionary<TabItem, TextBlock> _tabHeaderText = new(); // Text-Teil des Headers (für "*")
     private readonly TabControl _tabControl = new();
     private TabItem? _notesTab;
+
+    // --- Verpasst-Tab ---
+    private readonly StackPanel _missedListHost = new();
+    private readonly CheckBox _missedEnabled = new() { Content = Loc.T("Nennungen ohne Antwort als verpasst erfassen") };
+    private readonly TextBox _mentionTimeout = Num();
+    private readonly TextBox _mentionRepeat = Num();
+    private readonly TextBox _mentionRetention = Num();
+    private readonly ComboBox _missedVert = Combo();
+    private readonly ComboBox _missedHorz = Combo();
+    private readonly TextBox _snoozePresets = new() { Width = 200, HorizontalAlignment = HorizontalAlignment.Left };
     private bool _suppressDirty;
     private static readonly System.Windows.Media.Brush DirtyBrush = System.Windows.Media.Brushes.RoyalBlue;
 
-    public SettingsWindow(AppSettings current, Action<AppSettings> onApply, Action<AppSettings> onTestGlow, Action<AppSettings> onTestBanner)
+    public SettingsWindow(AppSettings current, Core.MentionStore mentions, Action<AppSettings> onApply, Action<AppSettings> onTestGlow, Action<AppSettings> onTestBanner)
     {
         _current = current;
+        _mentionStore = mentions;
         _onApply = onApply;
         _onTestGlow = onTestGlow;
         _onTestBanner = onTestBanner;
 
         Title = AppInfo.DisplayName + Loc.T(" – Einstellungen");
-        Width = 800;
-        Height = 620;
+        Width = 1000;
+        Height = 760;
+        MinWidth = 820;
+        MinHeight = 600;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Icon = Branding.CreateImageSource(64, Branding.Accent);
+        Core.Theme.Prepare(this); // Win11-Look: Theme-Farben + dunkle Titelleiste
 
         _quietBehavior.Items.Add(Loc.T("Leiser stellen"));
         _quietBehavior.Items.Add(Loc.T("Stumm schalten"));
@@ -134,9 +151,18 @@ public sealed class SettingsWindow : Window
         _bannerHorz.Items.Add(Loc.T("Links"));
         _bannerHorz.Items.Add(Loc.T("Mitte"));
         _bannerHorz.Items.Add(Loc.T("Rechts"));
+        _missedVert.Items.Add(Loc.T("Oben"));
+        _missedVert.Items.Add(Loc.T("Mitte"));
+        _missedVert.Items.Add(Loc.T("Unten"));
+        _missedHorz.Items.Add(Loc.T("Links"));
+        _missedHorz.Items.Add(Loc.T("Mitte"));
+        _missedHorz.Items.Add(Loc.T("Rechts"));
         _language.Items.Add("Deutsch");
         _language.Items.Add("English");
         _language.Items.Add("Italiano");
+        _themeMode.Items.Add(Loc.T("System"));
+        _themeMode.Items.Add(Loc.T("Hell"));
+        _themeMode.Items.Add(Loc.T("Dunkel"));
 
         var rects = NativeMethods.GetMonitorRects();
         for (int i = 0; i < rects.Count; i++)
@@ -172,121 +198,123 @@ public sealed class SettingsWindow : Window
 
         var tabControl = _tabControl;
 
-        tabControl.Items.Add(MakeTab(Loc.T("Erkennung"),
+        tabControl.Items.Add(BuildMissedTab()); // erster Tab
+
+        tabControl.Items.Add(MakeTab(Loc.T("Erkennung"), "",
             new UIElement[]
             {
                 Labeled(Loc.T("Trigger-Wörter (eines pro Zeile):"), _triggerWords),
-                Row(Loc.T("Eigener Name (im Transkript):"), _ownSpeaker),
-                _ignoreOwn,
-                _fuzzy,
-                Row(Loc.T("Fuzzy-Toleranz (max. Abweichung):"), _fuzzyDist),
+                Group(Row(Loc.T("Eigener Name (im Transkript):"), _ownSpeaker), _ignoreOwn),
+                Group(_fuzzy, Row(Loc.T("Fuzzy-Toleranz (max. Abweichung):"), _fuzzyDist)),
                 Row(Loc.T("Cooldown zwischen Auslösungen (ms):"), _cooldown)
             },
             new FrameworkElement[] { _triggerWords, _ownSpeaker, _ignoreOwn, _fuzzy, _fuzzyDist, _cooldown }));
 
-        var audioRows = new List<UIElement>
+        var deviceGroup = new List<UIElement>
         {
-            Row(Loc.T("Teams im Ruhe-Modus:"), _quietBehavior),
-            Row(Loc.T("Teams Ruhe-Lautstärke (%):"), _quietLevel),
-            Row(Loc.T("Teams Gesprächs-Lautstärke (%):"), _convLevel),
-            Row(Loc.T("Musik-App (SMTC-Kennung):"), _musicHint),
-            _manageTeams,
-            _manageMusic,
-            _autoConv,
-            _convOnCall,
-            new TextBlock { Text = Loc.T("Diese Wiedergabegeräte nie automatisch anpassen:"), Margin = new Thickness(0, 10, 0, 2) }
+            new TextBlock { Text = Loc.T("Diese Wiedergabegeräte nie automatisch anpassen:"), FontWeight = FontWeights.SemiBold }
         };
-        audioRows.AddRange(_audioExcludeChecks);
-        audioRows.Add(new TextBlock
+        deviceGroup.AddRange(_audioExcludeChecks);
+        deviceGroup.Add(new TextBlock
         {
             Text = Loc.T("Tipp: In Teams ein 'Zweites Rufsignal' auf ein hier ausgeschlossenes Gerät legen (z. B. Lautsprecher) – dann bleibt das Klingeln zusätzlicher Anrufe immer laut, während der Call leise wird."),
             Foreground = System.Windows.Media.Brushes.Gray,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 6, 0, 0)
+            TextWrapping = TextWrapping.Wrap
         });
+        var audioRows = new List<UIElement>
+        {
+            Group(Row(Loc.T("Teams im Ruhe-Modus:"), _quietBehavior),
+                  Row(Loc.T("Teams Ruhe-Lautstärke (%):"), _quietLevel),
+                  Row(Loc.T("Teams Gesprächs-Lautstärke (%):"), _convLevel)),
+            Row(Loc.T("Musik-App (SMTC-Kennung):"), _musicHint),
+            Group(_manageTeams, _manageMusic, _autoConv, _convOnCall),
+            Group(deviceGroup.ToArray())
+        };
         var audioInputs = new List<FrameworkElement> { _quietBehavior, _quietLevel, _convLevel, _musicHint, _manageTeams, _manageMusic, _autoConv, _convOnCall };
         audioInputs.AddRange(_audioExcludeChecks);
-        tabControl.Items.Add(MakeTab(Loc.T("Ton & Musik"), audioRows.ToArray(), audioInputs.ToArray()));
+        tabControl.Items.Add(MakeTab(Loc.T("Ton & Musik"), "", audioRows.ToArray(), audioInputs.ToArray()));
 
+        var glowMonitorGroup = new List<UIElement>
+        {
+            new TextBlock { Text = Loc.T("Zu beleuchtende Monitore (nichts markiert = alle):"), FontWeight = FontWeights.SemiBold }
+        };
+        glowMonitorGroup.AddRange(_monitorChecks);
+        glowMonitorGroup.Add(glowTest);
         var glowRows = new List<UIElement>
         {
-            Row(Loc.T("Farbe (Hex, z. B. #FF3B30):"), _glowColor),
-            Row(Loc.T("Dicke:"), _glowThickness),
-            Row(Loc.T("Dauer (ms):"), _glowDuration),
-            Row(Loc.T("Dauer-Rand im Gespräch zeigen:"), _persistentBorderMode),
-            new TextBlock { Text = Loc.T("Zu beleuchtende Monitore (nichts markiert = alle):"), Margin = new Thickness(0, 8, 0, 2) }
+            Group(Row(Loc.T("Farbe (Hex, z. B. #FF3B30):"), _glowColor),
+                  Row(Loc.T("Dicke:"), _glowThickness),
+                  Row(Loc.T("Dauer (ms):"), _glowDuration),
+                  Row(Loc.T("Dauer-Rand im Gespräch zeigen:"), _persistentBorderMode)),
+            Group(glowMonitorGroup.ToArray())
         };
-        glowRows.AddRange(_monitorChecks);
-        glowRows.Add(glowTest);
         var glowInputs = new List<FrameworkElement> { _glowColor, _glowThickness, _glowDuration, _persistentBorderMode };
         glowInputs.AddRange(_monitorChecks);
-        tabControl.Items.Add(MakeTab(Loc.T("Glow-Rand"), glowRows.ToArray(), glowInputs.ToArray()));
+        tabControl.Items.Add(MakeTab(Loc.T("Glow-Rand"), "", glowRows.ToArray(), glowInputs.ToArray()));
 
+        var bannerMonitorGroup = new List<UIElement>
+        {
+            new TextBlock { Text = Loc.T("Monitore für die Einblendung (nichts markiert = alle):"), FontWeight = FontWeights.SemiBold }
+        };
+        bannerMonitorGroup.AddRange(_bannerMonitorChecks);
+        bannerMonitorGroup.Add(bannerTest);
         var bannerRows = new List<UIElement>
         {
             _bannerEnabled,
-            Row(Loc.T("Text ({Name} = Sprecher):"), _bannerText),
-            Row(Loc.T("Vertikale Position:"), _bannerVert),
-            Row(Loc.T("Horizontale Position:"), _bannerHorz),
-            Row(Loc.T("Schriftgröße:"), _bannerSize),
-            Row(Loc.T("Farbe (Hex, z. B. #FF3B30):"), _bannerColor),
-            Row(Loc.T("Anzeigedauer (ms):"), _bannerDuration),
-            Row(Loc.T("Deckkraft (%):"), _bannerOpacity),
-            new TextBlock { Text = Loc.T("Monitore für die Einblendung (nichts markiert = alle):"), Margin = new Thickness(0, 8, 0, 2) }
+            Group(Row(Loc.T("Text ({Name} = Sprecher):"), _bannerText),
+                  Row(Loc.T("Vertikale Position:"), _bannerVert),
+                  Row(Loc.T("Horizontale Position:"), _bannerHorz),
+                  Row(Loc.T("Schriftgröße:"), _bannerSize),
+                  Row(Loc.T("Farbe (Hex, z. B. #FF3B30):"), _bannerColor),
+                  Row(Loc.T("Anzeigedauer (ms):"), _bannerDuration),
+                  Row(Loc.T("Deckkraft (%):"), _bannerOpacity)),
+            Group(bannerMonitorGroup.ToArray())
         };
-        bannerRows.AddRange(_bannerMonitorChecks);
-        bannerRows.Add(bannerTest);
         var bannerInputs = new List<FrameworkElement> { _bannerEnabled, _bannerText, _bannerVert, _bannerHorz, _bannerSize, _bannerColor, _bannerDuration, _bannerOpacity };
         bannerInputs.AddRange(_bannerMonitorChecks);
-        tabControl.Items.Add(MakeTab(Loc.T("Einblendung"), bannerRows.ToArray(), bannerInputs.ToArray()));
+        tabControl.Items.Add(MakeTab(Loc.T("Einblendung"), "", bannerRows.ToArray(), bannerInputs.ToArray()));
 
-        tabControl.Items.Add(MakeTab(Loc.T("Signalton"),
+        tabControl.Items.Add(MakeTab(Loc.T("Signalton"), "",
             new UIElement[]
             {
-                _soundEnabled,
-                Row(Loc.T("Ton:"), _soundFile),
-                Row(Loc.T("Lautstärke (%):"), _soundVolume),
-                Row(Loc.T("Ausgabegerät:"), _soundDevice),
-                soundTest,
-                new TextBlock
-                {
-                    Text = Loc.T("Auswahl aus %WINDIR%\\Media. Der Test nutzt die aktuell eingestellten Werte, ohne zu speichern."),
-                    Foreground = System.Windows.Media.Brushes.Gray,
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 8, 0, 0)
-                }
+                Group(_soundEnabled,
+                      Row(Loc.T("Ton:"), _soundFile),
+                      Row(Loc.T("Lautstärke (%):"), _soundVolume),
+                      Row(Loc.T("Ausgabegerät:"), _soundDevice),
+                      soundTest,
+                      new TextBlock
+                      {
+                          Text = Loc.T("Auswahl aus %WINDIR%\\Media. Der Test nutzt die aktuell eingestellten Werte, ohne zu speichern."),
+                          Foreground = System.Windows.Media.Brushes.Gray,
+                          TextWrapping = TextWrapping.Wrap
+                      })
             },
             new FrameworkElement[] { _soundEnabled, _soundFile, _soundVolume, _soundDevice }));
 
-        tabControl.Items.Add(MakeTab(Loc.T("Tastenkürzel"),
+        tabControl.Items.Add(MakeTab(Loc.T("Tastenkürzel"), "",
             new UIElement[]
             {
-                new TextBlock { Text = Loc.T("Format z. B. Ctrl+Alt+G, Shift+F9 …"), Margin = new Thickness(0, 0, 0, 6) },
-                Row(Loc.T("Umschalten Ruhe/Gespräch:"), _hotkeyToggle),
-                Row(Loc.T("In Ruhe-Modus:"), _hotkeyQuiet),
-                Row(Loc.T("In Gesprächs-Modus:"), _hotkeyConv),
-                Row(Loc.T("Erkennung an/aus:"), _hotkeyDetection)
+                Group(new TextBlock { Text = Loc.T("Format z. B. Ctrl+Alt+G, Shift+F9 …"), Foreground = System.Windows.Media.Brushes.Gray },
+                      Row(Loc.T("Umschalten Ruhe/Gespräch:"), _hotkeyToggle),
+                      Row(Loc.T("In Ruhe-Modus:"), _hotkeyQuiet),
+                      Row(Loc.T("In Gesprächs-Modus:"), _hotkeyConv),
+                      Row(Loc.T("Erkennung an/aus:"), _hotkeyDetection))
             },
             new FrameworkElement[] { _hotkeyToggle, _hotkeyQuiet, _hotkeyConv, _hotkeyDetection }));
 
-        tabControl.Items.Add(MakeTab(Loc.T("Sonstiges"),
+        tabControl.Items.Add(MakeTab(Loc.T("Sonstiges"), "",
             new UIElement[]
             {
-                Row(Loc.T("Sprache:"), _language),
-                _startInConversation,
-                _autoReturn,
-                Row(Loc.T("Zeit ohne eigene Wortmeldung (Sekunden):"), _autoReturnSec),
-                _autoReturnManual,
-                _detection,
-                _autostart,
-                _checkUpdates,
-                _silentUpdate,
-                _showNotes,
-                _offerInstall,
-                _debug,
-                Row(Loc.T("Poll-Intervall (ms):"), _pollInterval)
+                Group(Row(Loc.T("Sprache:"), _language),
+                      Row(Loc.T("Farbmodus:"), _themeMode)),
+                Group(_startInConversation, _detection, _autostart),
+                Group(_autoReturn,
+                      Row(Loc.T("Zeit ohne eigene Wortmeldung (Sekunden):"), _autoReturnSec),
+                      _autoReturnManual),
+                Group(_checkUpdates, _silentUpdate, _showNotes, _offerInstall),
+                Group(_debug, Row(Loc.T("Poll-Intervall (ms):"), _pollInterval))
             },
-            new FrameworkElement[] { _language, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _detection, _autostart, _checkUpdates, _silentUpdate, _showNotes, _offerInstall, _debug, _pollInterval }));
+            new FrameworkElement[] { _language, _themeMode, _startInConversation, _autoReturn, _autoReturnSec, _autoReturnManual, _detection, _autostart, _checkUpdates, _silentUpdate, _showNotes, _offerInstall, _debug, _pollInterval }));
 
         _notesTab = BuildReleaseNotesTab();
         tabControl.Items.Add(_notesTab);
@@ -318,29 +346,239 @@ public sealed class SettingsWindow : Window
         WireDirty();
     }
 
-    private TabItem MakeTab(string title, UIElement[] rows, FrameworkElement[] inputs)
+    private TabItem MakeTab(string title, string iconGlyph, UIElement[] rows, FrameworkElement[] inputs)
     {
-        var panel = new StackPanel { Margin = new Thickness(10) };
+        var panel = new StackPanel { Margin = new Thickness(2, 4, 10, 4) };
         foreach (var r in rows)
         {
-            if (r is FrameworkElement fe) fe.Margin = new Thickness(0, 3, 0, 3);
-            panel.Children.Add(r);
+            if (r is FrameworkElement fe) fe.Margin = new Thickness(0);
+            panel.Children.Add(Core.Theme.Card(r)); // jede Zeile als Win11-Kachel
         }
+        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = panel };
+        Core.Theme.ThinScroll(scroll);
         var tab = new TabItem
         {
-            Header = title,
             Tag = title, // Basis-Titel (bereits lokalisiert; "*" wird angehängt)
-            Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = panel }
+            Content = scroll
         };
+        tab.Header = MakeTabHeader(tab, iconGlyph, title);
         _tabs.Add(tab);
         foreach (var input in inputs) _tabOf[input] = tab;
         return tab;
+    }
+
+    /// <summary>Header eines Seitenleisten-Eintrags: MDL2-Icon + Text (Text-Teil wird für "*" gemerkt).</summary>
+    private StackPanel MakeTabHeader(TabItem tab, string iconGlyph, string title)
+    {
+        var p = new StackPanel { Orientation = Orientation.Horizontal };
+        p.Children.Add(new TextBlock
+        {
+            Text = iconGlyph,
+            FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),
+            FontSize = 16,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        var text = new TextBlock { Text = title, Margin = new Thickness(11, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        p.Children.Add(text);
+        _tabHeaderText[tab] = text;
+        return p;
+    }
+
+    /// <summary>Setzt/entfernt die „ungespeichert"-Markierung am Seitenleisten-Eintrag.</summary>
+    private void SetTabStar(TabItem tab, bool dirty)
+    {
+        var title = (string)tab.Tag!;
+        if (_tabHeaderText.TryGetValue(tab, out var text)) text.Text = dirty ? title + " *" : title;
+        else tab.Header = dirty ? title + " *" : title;
     }
 
     /// <summary>Wechselt (z. B. vom Tray aus) direkt auf den Release-Notes-Tab.</summary>
     public void ShowReleaseNotesTab()
     {
         if (_notesTab != null) _tabControl.SelectedItem = _notesTab;
+    }
+
+    /// <summary>Erster Tab: verpasste Erwähnungen – Liste (nach Tagen gruppiert, heute offen) mit
+    /// denselben Aktionen wie im Overlay plus Wieder-öffnen/Löschen, darunter die Einstellungen dazu.</summary>
+    private TabItem BuildMissedTab()
+    {
+        var panel = new StackPanel { Margin = new Thickness(10) };
+
+        var deleteAll = new Button { Content = Loc.T("Alle löschen"), Padding = new Thickness(10, 3, 10, 3), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 0, 4) };
+        deleteAll.Click += (_, _) => _mentionStore.DeleteAll();
+        panel.Children.Add(deleteAll);
+
+        panel.Children.Add(Core.Theme.Card(_missedListHost));
+
+        panel.Children.Add(new TextBlock { Text = Loc.T("Einstellungen"), FontWeight = FontWeights.Bold, Margin = new Thickness(0, 14, 0, 4) });
+        panel.Children.Add(Core.Theme.Card(Group(
+            _missedEnabled,
+            Row(Loc.T("Als unbeantwortet nach (Sekunden):"), _mentionTimeout),
+            Row(Loc.T("Gleiche Person erneut frühestens nach (Minuten):"), _mentionRepeat),
+            Row(Loc.T("Einträge automatisch löschen nach (Tagen):"), _mentionRetention),
+            Row(Loc.T("Snooze-Auswahl (Minuten, kommagetrennt):"), _snoozePresets))));
+        panel.Children.Add(Core.Theme.Card(Group(
+            Row(Loc.T("Vertikale Position:"), _missedVert),
+            Row(Loc.T("Horizontale Position:"), _missedHorz))));
+
+        var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = panel };
+        Core.Theme.ThinScroll(sv);
+        var tab = new TabItem { Tag = Loc.T("Verpasst"), Content = sv };
+        _tabs.Add(tab); // am Stern-Reset von Übernehmen/Verwerfen teilnehmen
+        tab.Header = MakeTabHeader(tab, "", Loc.T("Verpasst"));
+
+        // Konfig-Felder in die Dirty-Markierung einhängen (Liste selbst wirkt direkt, ohne Übernehmen).
+        foreach (var input in new FrameworkElement[]
+                 { _missedEnabled, _mentionTimeout, _mentionRepeat, _mentionRetention, _snoozePresets, _missedVert, _missedHorz })
+            _tabOf[input] = tab;
+
+        _mentionStore.Changed += (_, _) => { if (IsVisible) RebuildMissedList(); };
+        sv.IsVisibleChanged += (_, _) => { if (sv.IsVisible) RebuildMissedList(); };
+        RebuildMissedList();
+        return tab;
+    }
+
+    private static readonly System.Windows.Media.Brush MissedOpen = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xD9, 0x77, 0x06));
+    private static readonly System.Windows.Media.Brush MissedDone = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x8E, 0x4F));
+    private static readonly System.Windows.Media.Brush MissedWait = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x8A, 0x8A, 0x8A));
+
+    private void RebuildMissedList()
+    {
+        _missedListHost.Children.Clear();
+        var items = _mentionStore.Items;
+        if (items.Count == 0)
+        {
+            _missedListHost.Children.Add(new TextBlock
+            {
+                Text = Loc.T("Keine Einträge vorhanden."),
+                Foreground = System.Windows.Media.Brushes.Gray,
+                Margin = new Thickness(0, 8, 0, 4)
+            });
+            return;
+        }
+
+        foreach (var dayGroup in items.GroupBy(m => m.MentionedAt.Date).OrderByDescending(g => g.Key))
+        {
+            var day = dayGroup.Key;
+            string label = day == DateTime.Today ? Loc.T("Heute")
+                : day == DateTime.Today.AddDays(-1) ? Loc.T("Gestern")
+                : day.ToString("d");
+
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var headerText = new TextBlock
+            {
+                Text = $"{label} ({dayGroup.Count()})",
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var deleteDay = new Button
+            {
+                Content = Loc.T("Tag löschen"),
+                Padding = new Thickness(8, 1, 8, 1),
+                Margin = new Thickness(12, 0, 4, 0),
+                FontSize = 11
+            };
+            var capturedDay = day;
+            deleteDay.Click += (_, e) => { e.Handled = true; _mentionStore.DeleteDay(capturedDay); };
+            Grid.SetColumn(headerText, 0);
+            Grid.SetColumn(deleteDay, 1);
+            headerGrid.Children.Add(headerText);
+            headerGrid.Children.Add(deleteDay);
+
+            var entriesPanel = new StackPanel { Margin = new Thickness(6, 2, 0, 2) };
+            foreach (var m in dayGroup.OrderByDescending(x => x.MentionedAt))
+                entriesPanel.Children.Add(BuildMissedRow(m));
+
+            _missedListHost.Children.Add(new Expander
+            {
+                Header = headerGrid,
+                Content = entriesPanel,
+                IsExpanded = day == DateTime.Today,
+                Margin = new Thickness(0, 6, 0, 0)
+            });
+        }
+    }
+
+    private UIElement BuildMissedRow(Core.MissedMention m)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var statusBrush = m.Status switch
+        {
+            Core.MentionStatus.Done => MissedDone,
+            Core.MentionStatus.Open => MissedOpen,
+            _ => MissedWait
+        };
+        var dot = new System.Windows.Shapes.Ellipse
+        {
+            Width = 10,
+            Height = 10,
+            Fill = statusBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+
+        string suffix = m.Status switch
+        {
+            Core.MentionStatus.Done when m.DoneAt != null => " · " + Loc.Tf("erledigt {0}", m.DoneAt.Value.ToString("HH:mm")),
+            Core.MentionStatus.Snoozed when m.SnoozeUntil != null => " · " + Loc.Tf("zurückgestellt bis {0}", m.SnoozeUntil.Value.ToString("HH:mm")),
+            Core.MentionStatus.WaitingForPerson => " · " + Loc.T("wartet auf Rückkehr"),
+            _ => ""
+        };
+        var text = new TextBlock
+        {
+            Text = $"{m.MentionedAt:HH:mm} – {m.Speaker}{suffix}",
+            Foreground = statusBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        if (m.Status == Core.MentionStatus.Done)
+        {
+            buttons.Children.Add(SmallButton("↩", Loc.T("Wieder öffnen"), () => _mentionStore.Reopen(m.Id)));
+        }
+        else
+        {
+            buttons.Children.Add(SmallButton("✓", Loc.T("Erledigt"), () => _mentionStore.MarkDone(m.Id)));
+            var snoozeBtn = SmallButton("⏱", Loc.T("Erinnere mich in …"), null);
+            snoozeBtn.Click += (_, _) => Overlay.MentionOverlay.ShowSnoozeMenu(snoozeBtn, _current, _mentionStore, m.Id);
+            buttons.Children.Add(snoozeBtn);
+            buttons.Children.Add(SmallButton("👤", Loc.T("Erinnern, wenn die Person wieder im Call ist"), () => _mentionStore.WaitForPerson(m.Id)));
+            if (m.Status is Core.MentionStatus.Snoozed or Core.MentionStatus.WaitingForPerson)
+                buttons.Children.Add(SmallButton("↺", Loc.T("Erinnerung entfernen (wieder offen)"), () => _mentionStore.Reopen(m.Id)));
+        }
+        buttons.Children.Add(SmallButton("🗑", Loc.T("Löschen"), () => _mentionStore.Delete(m.Id)));
+
+        Grid.SetColumn(dot, 0);
+        Grid.SetColumn(text, 1);
+        Grid.SetColumn(buttons, 2);
+        grid.Children.Add(dot);
+        grid.Children.Add(text);
+        grid.Children.Add(buttons);
+        if (m.Status is Core.MentionStatus.Snoozed or Core.MentionStatus.WaitingForPerson) grid.Opacity = 0.6;
+        return grid;
+    }
+
+    private static Button SmallButton(string glyph, string toolTip, Action? onClick)
+    {
+        var b = new Button
+        {
+            Content = glyph,
+            ToolTip = toolTip,
+            Padding = new Thickness(6, 1, 6, 1),
+            Margin = new Thickness(4, 0, 0, 0),
+            Background = System.Windows.Media.Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+        if (onClick != null) b.Click += (_, _) => onClick();
+        return b;
     }
 
     /// <summary>Tab mit allen Release Notes (neueste zuerst, in der UI-Sprache). Die Daten werden
@@ -354,7 +592,9 @@ public sealed class SettingsWindow : Window
             Foreground = System.Windows.Media.Brushes.Gray
         });
         var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = panel };
-        var tab = new TabItem { Header = Loc.T("Release Notes"), Tag = Loc.T("Release Notes"), Content = sv };
+        Core.Theme.ThinScroll(sv);
+        var tab = new TabItem { Tag = Loc.T("Release Notes"), Content = sv };
+        tab.Header = MakeTabHeader(tab, "", Loc.T("Release Notes"));
 
         bool loaded = false;
         sv.IsVisibleChanged += async (_, _) =>
@@ -370,26 +610,23 @@ public sealed class SettingsWindow : Window
                     panel.Children.Add(new TextBlock { Text = Loc.T("Keine Releases gefunden.") });
                     return;
                 }
-                bool first = true;
                 foreach (var r in releases)
                 {
-                    if (!first)
-                        panel.Children.Add(new Separator { Margin = new Thickness(0, 14, 0, 4), Opacity = 0.5 });
-                    first = false;
-
                     string date = r.PublishedAt is { } dt ? " – " + dt.ToString("d") : "";
-                    panel.Children.Add(new TextBlock
+                    var block = new StackPanel();
+                    block.Children.Add(new TextBlock
                     {
                         Text = Loc.Tf("Version {0}", r.Tag.TrimStart('v', 'V')) + date,
                         FontSize = 15,
                         FontWeight = FontWeights.Bold,
-                        Margin = new Thickness(0, 6, 0, 4)
+                        Margin = new Thickness(0, 0, 0, 6)
                     });
-                    panel.Children.Add(new TextBlock
+                    block.Children.Add(new TextBlock
                     {
                         Text = UpdateManager.FormatNotesForDisplay(r.Body, Loc.Language),
                         TextWrapping = TextWrapping.Wrap
                     });
+                    panel.Children.Add(Core.Theme.Card(block)); // eine Kachel pro Release
                 }
             }
             catch
@@ -412,11 +649,12 @@ public sealed class SettingsWindow : Window
         var p = new StackPanel { Margin = new Thickness(14) };
 
         void Heading(string t) => p.Children.Add(new TextBlock { Text = t, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 12, 0, 4) });
-        void Body(string t, System.Windows.Media.Brush? fg = null) => p.Children.Add(new TextBlock
+        void Body(string t, System.Windows.Media.Brush? fg = null)
         {
-            Text = t, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 2),
-            Foreground = fg ?? System.Windows.Media.Brushes.Black
-        });
+            var tb = new TextBlock { Text = t, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 2) };
+            if (fg != null) tb.Foreground = fg; else tb.SetResourceReference(TextBlock.ForegroundProperty, "ThText");
+            p.Children.Add(tb);
+        }
 
         p.Children.Add(new Image
         {
@@ -465,13 +703,16 @@ public sealed class SettingsWindow : Window
         p.Children.Add(reset);
 
         var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = p };
+        Core.Theme.ThinScroll(sv);
         // Beim Wechsel auf den Info-Tab immer oben starten (sonst springt der Fokus ans Ende).
         sv.IsVisibleChanged += (_, _) =>
         {
             if (sv.IsVisible)
                 sv.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(sv.ScrollToTop));
         };
-        return new TabItem { Header = Loc.T("Info"), Tag = Loc.T("Info"), Content = sv };
+        var tab = new TabItem { Tag = Loc.T("Info"), Content = sv };
+        tab.Header = MakeTabHeader(tab, "", Loc.T("Info"));
+        return tab;
     }
 
     private void LoadFrom(AppSettings s)
@@ -517,6 +758,14 @@ public sealed class SettingsWindow : Window
         for (int i = 0; i < _bannerMonitorChecks.Count; i++)
             _bannerMonitorChecks[i].IsChecked = s.BannerMonitors.Count == 0 || s.BannerMonitors.Contains(i);
 
+        _missedEnabled.IsChecked = s.MissedMentionsEnabled;
+        _mentionTimeout.Text = s.MentionAnswerTimeoutSeconds.ToString();
+        _mentionRepeat.Text = s.MentionRepeatMinutes.ToString();
+        _mentionRetention.Text = s.MentionRetentionDays.ToString();
+        _snoozePresets.Text = string.Join(", ", s.SnoozePresetsMinutes);
+        _missedVert.SelectedIndex = s.MentionOverlayVertical switch { BannerVertical.Top => 0, BannerVertical.Center => 1, _ => 2 };
+        _missedHorz.SelectedIndex = s.MentionOverlayHorizontal switch { BannerHorizontal.Left => 0, BannerHorizontal.Center => 1, _ => 2 };
+
         _soundEnabled.IsChecked = s.TriggerSoundEnabled;
         int soundIdx = _soundPaths.FindIndex(p => string.Equals(p, s.TriggerSoundFile, StringComparison.OrdinalIgnoreCase));
         if (soundIdx < 0) soundIdx = _soundPaths.FindIndex(p => p.EndsWith("Windows Notify.wav", StringComparison.OrdinalIgnoreCase));
@@ -532,6 +781,7 @@ public sealed class SettingsWindow : Window
         _hotkeyDetection.Text = s.HotkeyToggleDetection;
 
         _language.SelectedIndex = s.Language switch { AppLanguage.En => 1, AppLanguage.It => 2, _ => 0 };
+        _themeMode.SelectedIndex = s.Theme switch { AppThemeMode.Light => 1, AppThemeMode.Dark => 2, _ => 0 };
         _startInConversation.IsChecked = s.StartInConversationMode;
         _autoReturn.IsChecked = s.AutoReturnToQuietEnabled;
         _autoReturnSec.Text = s.AutoReturnAfterSeconds.ToString();
@@ -601,6 +851,18 @@ public sealed class SettingsWindow : Window
             if (_bannerMonitorChecks[i].IsChecked == true) bannerChosen.Add(i);
         s.BannerMonitors = bannerChosen.Count == _bannerMonitorChecks.Count ? new List<int>() : bannerChosen;
 
+        s.MissedMentionsEnabled = _missedEnabled.IsChecked == true;
+        s.MentionAnswerTimeoutSeconds = ParseInt(_mentionTimeout.Text, s.MentionAnswerTimeoutSeconds, 5, 3600);
+        s.MentionRepeatMinutes = ParseInt(_mentionRepeat.Text, s.MentionRepeatMinutes, 0, 720);
+        s.MentionRetentionDays = ParseInt(_mentionRetention.Text, s.MentionRetentionDays, 1, 365);
+        var presets = _snoozePresets.Text
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => int.TryParse(t, out var v) ? v : 0)
+            .Where(v => v > 0).Distinct().OrderBy(v => v).ToList();
+        if (presets.Count > 0) s.SnoozePresetsMinutes = presets;
+        s.MentionOverlayVertical = _missedVert.SelectedIndex switch { 0 => BannerVertical.Top, 1 => BannerVertical.Center, _ => BannerVertical.Bottom };
+        s.MentionOverlayHorizontal = _missedHorz.SelectedIndex switch { 0 => BannerHorizontal.Left, 1 => BannerHorizontal.Center, _ => BannerHorizontal.Right };
+
         s.TriggerSoundEnabled = _soundEnabled.IsChecked == true;
         s.TriggerSoundFile = SelectedSoundPath();
         s.TriggerSoundVolume = ParseInt(_soundVolume.Text, s.TriggerSoundVolume, 0, 100);
@@ -612,6 +874,7 @@ public sealed class SettingsWindow : Window
         s.HotkeyToggleDetection = _hotkeyDetection.Text.Trim();
 
         s.Language = _language.SelectedIndex switch { 1 => AppLanguage.En, 2 => AppLanguage.It, _ => AppLanguage.De };
+        s.Theme = _themeMode.SelectedIndex switch { 1 => AppThemeMode.Light, 2 => AppThemeMode.Dark, _ => AppThemeMode.System };
         s.StartInConversationMode = _startInConversation.IsChecked == true;
         s.AutoReturnToQuietEnabled = _autoReturn.IsChecked == true;
         s.AutoReturnAfterSeconds = ParseInt(_autoReturnSec.Text, s.AutoReturnAfterSeconds, 1, 3600);
@@ -633,7 +896,7 @@ public sealed class SettingsWindow : Window
         try
         {
             _onApply(BuildSettings());
-            foreach (var tab in _tabs) tab.Header = (string)tab.Tag; // "*" entfernen
+            foreach (var tab in _tabs) SetTabStar(tab, false);
             SetDirtyButtons(false);
             ResetFieldHighlights();
             _statusText.Text = Loc.T("Übernommen ✓");
@@ -665,12 +928,12 @@ public sealed class SettingsWindow : Window
 
         if (markDirty)
         {
-            foreach (var tab in _tabs) tab.Header = (string)tab.Tag + " *";
+            foreach (var tab in _tabs) SetTabStar(tab, true);
             SetDirtyButtons(true);
         }
         else
         {
-            foreach (var tab in _tabs) tab.Header = (string)tab.Tag;
+            foreach (var tab in _tabs) SetTabStar(tab, false);
             SetDirtyButtons(false);
         }
     }
@@ -713,7 +976,7 @@ public sealed class SettingsWindow : Window
     private void MarkDirty(TabItem tab)
     {
         if (_suppressDirty) return;
-        tab.Header = (string)tab.Tag + " *";
+        SetTabStar(tab, true);
         SetDirtyButtons(true);
         _statusText.Text = "";
     }
@@ -754,6 +1017,19 @@ public sealed class SettingsWindow : Window
         TextWrapping = TextWrapping.Wrap,
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto
     };
+
+    /// <summary>Fasst zusammengehörige Einstellungszeilen (z. B. Überschrift + Auswahlfelder)
+    /// zu EINER Kachel zusammen.</summary>
+    private static StackPanel Group(params UIElement[] children)
+    {
+        var p = new StackPanel();
+        foreach (var c in children)
+        {
+            if (c is FrameworkElement fe) fe.Margin = new Thickness(0, 4, 0, 4);
+            p.Children.Add(c);
+        }
+        return p;
+    }
 
     private static Grid Row(string label, UIElement control)
     {

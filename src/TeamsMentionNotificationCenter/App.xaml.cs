@@ -20,6 +20,19 @@ public partial class App : Application
         var settings = AppSettings.Load();
         Localization.Loc.Language = settings.Language;
         Core.Logger.Enabled = settings.DebugLogging; // früh setzen, damit auch Install/Update-Schritte geloggt werden
+        Core.Theme.Initialize(settings.Theme);       // vor dem ersten Fenster (Install-/Update-Dialoge)
+
+        // Abstürze sichtbar machen: UI-Ausnahmen loggen und abfangen (App läuft weiter),
+        // alles andere zumindest ins Log schreiben, bevor der Prozess stirbt.
+        DispatcherUnhandledException += (_, ex) =>
+        {
+            Core.Logger.Log("UNBEHANDELTE UI-AUSNAHME: " + ex.Exception);
+            MessageBox.Show(ex.Exception.Message, AppInfo.DisplayName + " – Fehler",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            ex.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
+            Core.Logger.Log("UNBEHANDELTE AUSNAHME: " + ex.ExceptionObject);
 
         // Nur eine Instanz zulassen: Der Mutex lebt so lange wie der Prozess; stürzt die App ab,
         // räumt Windows das Kernel-Objekt automatisch weg. Ohne Prefix gilt er pro Benutzersitzung.

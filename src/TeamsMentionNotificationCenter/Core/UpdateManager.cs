@@ -165,6 +165,7 @@ public static class UpdateManager
             MaxHeight = 340,
             Margin = new Thickness(0, 0, 0, 14)
         };
+        Theme.ThinScroll(scroll);
         var openPage = new Button { Content = Loc.T("Release-Seite öffnen"), Padding = new Thickness(14, 5, 14, 5) };
         var close = new Button { Content = Loc.T("Schließen"), Padding = new Thickness(14, 5, 14, 5), Margin = new Thickness(8, 0, 0, 0), IsDefault = true, IsCancel = true };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -187,6 +188,7 @@ public static class UpdateManager
             ShowInTaskbar = true,
             Icon = Branding.CreateImageSource(64, Branding.Accent)
         };
+        Theme.Prepare(win);
         openPage.Click += (_, _) =>
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(releaseUrl) { UseShellExecute = true }); }
@@ -250,6 +252,7 @@ public static class UpdateManager
             ShowInTaskbar = true,
             Icon = Branding.CreateImageSource(64, Branding.Accent)
         };
+        Theme.Prepare(win);
         yes.Click += (_, _) => { updateNow = true; win.Close(); };
         later.Click += (_, _) => win.Close();
         win.ShowDialog();

@@ -25,7 +25,11 @@ public sealed class TrayIconManager : IDisposable
     private readonly MenuItem _reloadItem;
     private readonly MenuItem _updateItem;
     private readonly MenuItem _notesItem;
+    private readonly MenuItem _missedItem;
     private readonly MenuItem _exitItem;
+    private int _missedCount;
+    private readonly ContextMenu _menu;
+    private System.Windows.Window? _fgHelper;
     private IntPtr _hIcon;
 
     private AppMode _mode = AppMode.Quiet;
@@ -41,30 +45,39 @@ public sealed class TrayIconManager : IDisposable
         Action onReloadSettings,
         Action onCheckUpdates,
         Action onShowReleaseNotes,
+        Action onShowMissedMentions,
         Action onExit)
     {
         _detectionEnabled = settings.DetectionEnabled;
 
         _statusItem = new MenuItem { Header = AppInfo.DisplayName, IsEnabled = false };
         _modeItem = new MenuItem { IsEnabled = false };
+        // Menü-Aktionen ENTKOPPELT ausführen: Erst muss sich das Popup schließen und wegzeichnen,
+        // dann startet die Aktion. Läuft sie sofort (z. B. der ~300-ms-Aufbau des Einstellungs-
+        // fensters), friert das halb geschlossene Popup als weißes Rechteck ein („helles Aufblitzen").
+        void Defer(Action action) => System.Windows.Application.Current.Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.Background, action);
+
         _detectionItem = new MenuItem { IsCheckable = true, IsChecked = _detectionEnabled };
-        _detectionItem.Click += (_, _) => onToggleDetection();
+        _detectionItem.Click += (_, _) => Defer(onToggleDetection);
         _conversationItem = new MenuItem();
-        _conversationItem.Click += (_, _) => onEnterConversation();
+        _conversationItem.Click += (_, _) => Defer(onEnterConversation);
         _quietItem = new MenuItem();
-        _quietItem.Click += (_, _) => onEnterQuiet();
+        _quietItem.Click += (_, _) => Defer(onEnterQuiet);
         _testItem = new MenuItem();
-        _testItem.Click += (_, _) => onTestGlow();
+        _testItem.Click += (_, _) => Defer(onTestGlow);
         _settingsItem = new MenuItem();
-        _settingsItem.Click += (_, _) => onOpenSettings();
+        _settingsItem.Click += (_, _) => Defer(onOpenSettings);
         _reloadItem = new MenuItem();
-        _reloadItem.Click += (_, _) => onReloadSettings();
+        _reloadItem.Click += (_, _) => Defer(onReloadSettings);
         _updateItem = new MenuItem();
-        _updateItem.Click += (_, _) => onCheckUpdates();
+        _updateItem.Click += (_, _) => Defer(onCheckUpdates);
         _notesItem = new MenuItem();
-        _notesItem.Click += (_, _) => onShowReleaseNotes();
+        _notesItem.Click += (_, _) => Defer(onShowReleaseNotes);
+        _missedItem = new MenuItem { IsEnabled = false };
+        _missedItem.Click += (_, _) => Defer(onShowMissedMentions);
         _exitItem = new MenuItem();
-        _exitItem.Click += (_, _) => onExit();
+        _exitItem.Click += (_, _) => Defer(onExit);
 
         var menu = new ContextMenu();
         menu.Items.Add(_statusItem);
@@ -73,6 +86,7 @@ public sealed class TrayIconManager : IDisposable
         menu.Items.Add(_detectionItem);
         menu.Items.Add(_conversationItem);
         menu.Items.Add(_quietItem);
+        menu.Items.Add(_missedItem);
         menu.Items.Add(_testItem);
         menu.Items.Add(new Separator());
         menu.Items.Add(_settingsItem);
@@ -81,27 +95,56 @@ public sealed class TrayIconManager : IDisposable
         menu.Items.Add(_notesItem);
         menu.Items.Add(_exitItem);
 
-        // Fix für das „Aufblitzen" beim Rechtsklick: Eine App ohne sichtbares Fenster ist beim Öffnen des
-        // Menüs nicht der Vordergrundprozess, daher schließt Windows das Popup sofort wieder. Sobald das
-        // Menü offen ist, wird sein eigenes Popup-Fenster gezielt in den Vordergrund geholt – inklusive
-        // kurzzeitiger Umgehung der Windows-Vordergrundsperre (SPI_SETFOREGROUNDLOCKTIMEOUT), die dieses
-        // SetForegroundWindow aus einer fensterlosen App sonst sporadisch scheitern lässt (= das Aufblitzen).
-        // WICHTIG: Es wird NUR das Menü-Popup selbst nach vorn geholt, kein Hilfsfenster – sonst verliert
-        // das Menü den Fokus und schließt sich sofort.
-        menu.Opened += (_, _) =>
+        _menu = menu;
+
+        // Kanonische Lösung fürs „Aufblitzen" beim ersten Rechtsklick: Das Menü wird NICHT von der
+        // Bibliothek geöffnet (deren internes SetForegroundWindow scheitert an der Windows-
+        // Vordergrundsperre), sondern von uns – und zwar erst, NACHDEM ein verstecktes eigenes
+        // Fenster per ForceForeground (mit Sperren-Umgehung) den Vordergrund übernommen hat.
+        // Dann lässt Windows das Popup zuverlässig offen (TrackPopupMenu-Muster).
+        _fgHelper = new System.Windows.Window
         {
-            if (System.Windows.PresentationSource.FromVisual(menu) is System.Windows.Interop.HwndSource src)
-                ForceForeground(src.Handle);
+            Width = 0,
+            Height = 0,
+            WindowStyle = System.Windows.WindowStyle.None,
+            ShowInTaskbar = false,
+            ShowActivated = false,
+            AllowsTransparency = true,
+            Background = System.Windows.Media.Brushes.Transparent,
+            Opacity = 0,
+            Left = -32000,
+            Top = -32000
         };
+        _fgHelper.SourceInitialized += (_, _) =>
+        {
+            var h = new System.Windows.Interop.WindowInteropHelper(_fgHelper).Handle;
+            int ex = Interop.NativeMethods.GetWindowLong(h, Interop.NativeMethods.GWL_EXSTYLE);
+            Interop.NativeMethods.SetWindowLong(h, Interop.NativeMethods.GWL_EXSTYLE,
+                ex | Interop.NativeMethods.WS_EX_TOOLWINDOW); // nicht in Alt+Tab
+        };
+        _fgHelper.Show();
 
         _icon = new TaskbarIcon
         {
             ToolTipText = AppInfo.DisplayName,
-            ContextMenu = menu,
             Icon = BuildIcon()
+            // BEWUSST kein ContextMenu zugewiesen – wir öffnen selbst (siehe ShowMenu).
         };
+        _icon.TrayRightMouseUp += (_, _) => ShowMenu();
+        _icon.TrayMouseDoubleClick += (_, _) => onOpenSettings(); // Doppelklick = Einstellungen (Tray-Konvention)
         _icon.ForceCreate();
         Relocalize();
+    }
+
+    private void ShowMenu()
+    {
+        if (_fgHelper != null)
+        {
+            var h = new System.Windows.Interop.WindowInteropHelper(_fgHelper).Handle;
+            Interop.NativeMethods.ForceForeground(h); // VOR dem Öffnen – entscheidend
+        }
+        _menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        _menu.IsOpen = true;
     }
 
     /// <summary>Alle Menütexte gemäß aktueller Sprache setzen.</summary>
@@ -115,8 +158,19 @@ public sealed class TrayIconManager : IDisposable
         _reloadItem.Header = Loc.T("Einstellungen neu laden (aus Datei)");
         _updateItem.Header = Loc.T("Auf Updates prüfen …");
         _notesItem.Header = Loc.T("Release Notes anzeigen");
+        SetMissedCount(_missedCount); // lokalisierten Text inkl. Zähler setzen
         _exitItem.Header = Loc.T("Beenden");
         _modeItem.Header = Loc.T(_mode == AppMode.Conversation ? "Modus: Gespräch" : "Modus: Ruhe");
+    }
+
+    /// <summary>Zähler der nicht erledigten verpassten Erwähnungen (0 = Menüpunkt deaktiviert).</summary>
+    public void SetMissedCount(int count)
+    {
+        _missedCount = count;
+        _missedItem.IsEnabled = count > 0;
+        _missedItem.Header = count > 0
+            ? Loc.Tf("Verpasste Erwähnungen ({0}) …", count)
+            : Loc.T("Verpasste Erwähnungen …");
     }
 
     public void UpdateStatus(string text, bool available)
@@ -159,45 +213,10 @@ public sealed class TrayIconManager : IDisposable
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyIcon(IntPtr hIcon);
 
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    private const uint SPI_GETFOREGROUNDLOCKTIMEOUT = 0x2000;
-    private const uint SPI_SETFOREGROUNDLOCKTIMEOUT = 0x2001;
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, out uint pvParam, uint fWinIni);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
-
-    /// <summary>Holt <paramref name="hWnd"/> zuverlässig nach vorn. Windows blockiert SetForegroundWindow
-    /// normalerweise, wenn der aufrufende Prozess nicht im Vordergrund ist (Vordergrundsperre) – deshalb wird
-    /// die Sperre kurz auf 0 gesetzt und danach wieder auf den alten Wert zurückgestellt (nur im Speicher,
-    /// nicht persistent).</summary>
-    private static void ForceForeground(IntPtr hWnd)
-    {
-        if (hWnd == IntPtr.Zero) return;
-        uint timeout = 0;
-        bool got = false;
-        try
-        {
-            got = SystemParametersInfo(SPI_GETFOREGROUNDLOCKTIMEOUT, 0, out timeout, 0);
-            SystemParametersInfo(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, IntPtr.Zero, 0);
-            SetForegroundWindow(hWnd);
-        }
-        finally
-        {
-            if (got) SystemParametersInfo(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, new IntPtr(timeout), 0);
-        }
-    }
-
     public void Dispose()
     {
         _icon.Dispose();
+        try { _fgHelper?.Close(); } catch { /* App fährt herunter */ }
         if (_hIcon != IntPtr.Zero) DestroyIcon(_hIcon);
     }
 }

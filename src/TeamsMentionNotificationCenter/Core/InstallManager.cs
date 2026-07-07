@@ -66,6 +66,7 @@ public static class InstallManager
             ShowInTaskbar = true,
             Icon = Branding.CreateImageSource(64, Branding.Accent)
         };
+        Theme.Prepare(win);
         install.Click += (_, _) => { doInstall = true; win.Close(); };
         later.Click += (_, _) => win.Close();
         win.ShowDialog();

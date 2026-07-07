@@ -44,6 +44,17 @@ public sealed class UiaTranscriptSource : ITranscriptSource
     public event EventHandler<CaptionEventArgs>? CaptionReceived;
     public event EventHandler<TranscriptStatusEventArgs>? StatusChanged;
     public event EventHandler<bool>? IncomingCallVisibleChanged;
+    public event EventHandler<string>? WatchedPersonSeen;
+
+    private volatile string[] _watchedOriginal = Array.Empty<string>();
+    private volatile string[] _watchedNormalized = Array.Empty<string>();
+
+    public void SetWatchedPersons(IReadOnlyCollection<string> names)
+    {
+        var arr = names.Where(n => !string.IsNullOrWhiteSpace(n)).ToArray();
+        _watchedOriginal = arr;
+        _watchedNormalized = arr.Select(Detection.NameMatcher.Normalize).ToArray();
+    }
 
     public UiaTranscriptSource(AppSettings settings) => _settings = settings;
 
@@ -101,6 +112,12 @@ public sealed class UiaTranscriptSource : ITranscriptSource
 
         // Eingehenden Anruf erkennen (kleines Popup mit Annehmen-/Ablehnen-Buttons).
         DetectIncomingCall(teamsWindows);
+
+        // Beobachtete Personen (Bei-Rückkehr-Erinnerung): Teilnehmer-Kacheln in Meeting-Fenstern
+        // suchen – experimentell; das Sprechen der Person (Untertitel) dient als Fallback und wird
+        // im AppController ausgewertet. Nur jeder 4. Poll, um Last zu sparen.
+        if (_watchedNormalized.Length > 0 && _pollTick % 4 == 0)
+            ScanForWatchedPersons(teamsWindows);
 
         // ALLE Teams-Fenster außer dem Chat-Hub prüfen – deckt ausgekoppelte Untertitel-Fenster UND
         // In-Meeting-Untertitel ab, auch bei mehreren Calls gleichzeitig (egal ob ausgekoppelt).
@@ -255,6 +272,64 @@ public sealed class UiaTranscriptSource : ITranscriptSource
         if (_loggedCallCandidates.Count > 200) _loggedCallCandidates.Clear();
 
         return hit;
+    }
+
+    // --- Beobachtete Personen (Bei-Rückkehr-Erinnerung) ---------------------
+    // Experimentell: sucht in Meeting-Fenstern nach Elementen (Teilnehmer-Kacheln/-Liste), deren
+    // UIA-Name den beobachteten Personennamen enthält. Text-/Chat-Elemente werden ausgeschlossen,
+    // damit alte Untertitel-Zeilen oder Chat-Nachrichten nicht als „Person ist da" zählen.
+    private void ScanForWatchedPersons(List<AutomationElement> teamsWindows)
+    {
+        var watchedNorm = _watchedNormalized;
+        var watchedOrig = _watchedOriginal;
+        if (watchedNorm.Length == 0 || watchedOrig.Length != watchedNorm.Length) return;
+
+        var seen = new HashSet<int>();
+        var sw = Stopwatch.StartNew();
+        foreach (var w in teamsWindows)
+        {
+            if (sw.ElapsedMilliseconds > 1200 || seen.Count == watchedNorm.Length) break;
+            var title = Safe(() => w.Properties.Name.ValueOrDefault) ?? "";
+            if (IsChatHub(title)) continue; // Namen im Chat-Verlauf sind keine Anwesenheit
+            ScanElementForWatched(w, watchedNorm, watchedOrig, seen, 0, 30, new[] { 0 }, 2500, sw, 1200);
+        }
+    }
+
+    private void ScanElementForWatched(AutomationElement el, string[] watchedNorm, string[] watchedOrig,
+        HashSet<int> seen, int depth, int maxDepth, int[] count, int maxCount, Stopwatch sw, int maxMs)
+    {
+        if (depth > maxDepth || count[0] >= maxCount || sw.ElapsedMilliseconds > maxMs ||
+            seen.Count == watchedNorm.Length) return;
+        count[0]++;
+
+        string cls = Safe(() => el.Properties.ClassName.ValueOrDefault) ?? "";
+        if (cls.Contains("ChatMessage", StringComparison.OrdinalIgnoreCase)) return; // Chat/Untertitel-Zeilen samt Kindern überspringen
+
+        var ct = Safe(() => el.Properties.ControlType.ValueOrDefault);
+        if (ct != ControlType.Text && ct != ControlType.Document && ct != ControlType.Edit)
+        {
+            var elName = Safe(() => el.Properties.Name.ValueOrDefault) ?? "";
+            if (elName.Length >= 2 && elName.Length <= 200)
+            {
+                var norm = Detection.NameMatcher.Normalize(elName);
+                for (int i = 0; i < watchedNorm.Length; i++)
+                {
+                    if (seen.Contains(i) || watchedNorm[i].Length < 2) continue;
+                    if (norm.Contains(watchedNorm[i], StringComparison.Ordinal))
+                    {
+                        seen.Add(i);
+                        Logger.Log($"Beobachtete Person gesehen: '{watchedOrig[i]}' (Element {ct}, Klasse '{(cls.Length > 40 ? cls[..40] : cls)}')");
+                        WatchedPersonSeen?.Invoke(this, watchedOrig[i]);
+                    }
+                }
+            }
+        }
+
+        AutomationElement[] children;
+        try { children = el.FindAllChildren(); }
+        catch { return; }
+        foreach (var c in children)
+            ScanElementForWatched(c, watchedNorm, watchedOrig, seen, depth + 1, maxDepth, count, maxCount, sw, maxMs);
     }
 
     private void SetCallVisible(bool visible)

@@ -25,6 +25,13 @@ public sealed class AppController : IDisposable
     private readonly GlowOverlay _glow;
     private readonly CallerBanner _banner;
     private readonly AudioController _audio;
+    private readonly MentionStore _mentions;
+    private readonly MentionOverlay _mentionOverlay;
+    // Nennungen, die noch auf eine eigene Antwort warten (nur UI-Thread).
+    private readonly List<(string Speaker, DateTime Utc, DateTime Local)> _pendingMentions = new();
+    private long _lastRealOwnSpeechTicks;      // echte eigene Wortmeldungen (unverfälscht von SetMode)
+    private volatile bool _hasWaitingPersons;  // es gibt Einträge „warte auf Rückkehr"
+    private DateTime _lastMentionCleanupUtc = DateTime.UtcNow;
     private ITranscriptSource? _transcript;
     private TrayIconManager? _tray;
     private HotkeyManager? _hotkeys;
@@ -54,6 +61,8 @@ public sealed class AppController : IDisposable
         _glow = new GlowOverlay(settings);
         _banner = new CallerBanner(settings);
         _audio = new AudioController(settings);
+        _mentions = new MentionStore();
+        _mentionOverlay = new MentionOverlay(settings, _mentions);
     }
 
     public void Start()
@@ -71,6 +80,7 @@ public sealed class AppController : IDisposable
             onReloadSettings: ReloadSettingsFromDisk,
             onCheckUpdates: () => CheckForUpdates(manual: true),
             onShowReleaseNotes: () => OpenSettingsWindow(showReleaseNotes: true),
+            onShowMissedMentions: () => _mentionOverlay.ShowOverlay(),
             onExit: () => System.Windows.Application.Current.Shutdown());
         _tray.UpdateStatus(Loc.T("Starte …"), false);
         _tray.SetDetection(_settings.DetectionEnabled);
@@ -80,15 +90,21 @@ public sealed class AppController : IDisposable
         RegisterHotkeys();
         AutostartManager.Apply(_settings.StartWithWindows);
 
+        _mentions.Load(_settings.MentionRetentionDays);
+        _mentions.Changed += OnMentionsChanged;
+
         _transcript = new UiaTranscriptSource(_settings);
         _transcript.CaptionReceived += OnCaptionReceived;
         _transcript.StatusChanged += OnTranscriptStatusChanged;
         _transcript.IncomingCallVisibleChanged += OnIncomingCallChanged;
+        _transcript.WatchedPersonSeen += OnWatchedPersonSeen;
         _transcript.Start();
+        OnMentionsChanged(this, EventArgs.Empty); // Tray-Zähler + beobachtete Personen initialisieren
 
         // Auto-Rückkehr in den Ruhe-Modus, wenn im Gespräch der Name X s nicht mehr fällt.
         _autoReturnTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _autoReturnTimer.Tick += (_, _) => CheckAutoReturn();
+        _autoReturnTimer.Tick += (_, _) => MentionHousekeeping();
         _autoReturnTimer.Start();
 
         // Startmodus: nach einem Update-Neustart den vorherigen Zustand wiederherstellen,
@@ -108,6 +124,10 @@ public sealed class AppController : IDisposable
             periodicTimer.Tick += (_, _) => { if (_settings.SilentAutoUpdate) CheckForUpdates(manual: false); };
             periodicTimer.Start();
         }
+
+        // Noch offene verpasste Erwähnungen aus der letzten Sitzung wieder anzeigen.
+        if (_settings.MissedMentionsEnabled && _mentions.UnfinishedCount > 0)
+            _mentionOverlay.ShowOverlay();
 
         // Nach einem Update einmalig die Versionshinweise der neuen Version anzeigen.
         if (UpdatedFromVersion != null && _settings.ShowNotesAfterUpdate)
@@ -193,7 +213,14 @@ public sealed class AppController : IDisposable
         if (IsOwnSpeaker(e.Line.Speaker))
         {
             Volatile.Write(ref _lastOwnSpeechTicks, DateTime.UtcNow.Ticks);
+            Volatile.Write(ref _lastRealOwnSpeechTicks, DateTime.UtcNow.Ticks); // „beantwortet"-Prüfung
             Logger.Log("Eigene Wortmeldung erkannt (Auto-Rückkehr-Timer zurückgesetzt)");
+        }
+        else if (_hasWaitingPersons && !string.IsNullOrWhiteSpace(e.Line.Speaker))
+        {
+            // Fallback der Bei-Rückkehr-Erinnerung: Die Person spricht wieder.
+            var seenSpeaker = e.Line.Speaker;
+            _dispatcher.BeginInvoke(() => HandlePersonSeen(seenSpeaker));
         }
 
         if (!_settings.DetectionEnabled) return;
@@ -244,6 +271,73 @@ public sealed class AppController : IDisposable
         if (_settings.TriggerSoundEnabled)
             SoundNotifier.Play(_settings.TriggerSoundFile, _settings.TriggerSoundVolume, _settings.TriggerSoundDeviceId);
         _tray?.UpdateStatus(Loc.Tf("Name erkannt: {0}", word), true);
+
+        // Kandidat für „verpasste Erwähnung": wird nach Ablauf des Antwort-Timeouts zum Eintrag,
+        // wenn bis dahin keine eigene Wortmeldung kam (MentionHousekeeping).
+        if (_settings.MissedMentionsEnabled)
+            _pendingMentions.Add((speaker, DateTime.UtcNow, DateTime.Now));
+    }
+
+    /// <summary>Sekündliche Pflege der verpassten Erwähnungen: Antwort-Timeouts auflösen,
+    /// fällige Erinnerungen wieder öffnen, stündlich alte Einträge aufräumen.</summary>
+    private void MentionHousekeeping()
+    {
+        var nowUtc = DateTime.UtcNow;
+
+        if (_pendingMentions.Count > 0)
+        {
+            long lastOwn = Volatile.Read(ref _lastRealOwnSpeechTicks);
+            int timeout = Math.Max(5, _settings.MentionAnswerTimeoutSeconds);
+            for (int i = _pendingMentions.Count - 1; i >= 0; i--)
+            {
+                var pending = _pendingMentions[i];
+                if (lastOwn > pending.Utc.Ticks)
+                {
+                    _pendingMentions.RemoveAt(i); // beantwortet -> kein Eintrag
+                }
+                else if ((nowUtc - pending.Utc).TotalSeconds >= timeout)
+                {
+                    _pendingMentions.RemoveAt(i);
+                    var entry = _mentions.AddIfNew(pending.Speaker, pending.Local, _settings.MentionRepeatMinutes);
+                    if (entry != null)
+                    {
+                        Logger.Log($"Verpasste Erwähnung ({entry.MentionedAt:HH:mm}): keine Antwort innerhalb {timeout}s");
+                        _mentionOverlay.ShowOverlay();
+                    }
+                }
+            }
+        }
+
+        var due = _mentions.TickSnoozes(DateTime.Now);
+        if (due.Count > 0)
+        {
+            Logger.Log($"Erinnerung fällig: {due.Count} Eintrag/Einträge wieder offen");
+            _mentionOverlay.ShowOverlay();
+        }
+
+        if ((nowUtc - _lastMentionCleanupUtc).TotalHours >= 1)
+        {
+            _lastMentionCleanupUtc = nowUtc;
+            _mentions.Cleanup(_settings.MentionRetentionDays);
+        }
+    }
+
+    private void OnWatchedPersonSeen(object? sender, string name) =>
+        _dispatcher.BeginInvoke(() => HandlePersonSeen(name));
+
+    private void HandlePersonSeen(string speaker)
+    {
+        var reopened = _mentions.PersonSeen(speaker);
+        if (reopened.Count == 0) return;
+        Logger.Log($"Person wieder im Call -> {reopened.Count} Eintrag/Einträge wieder offen");
+        _mentionOverlay.ShowOverlay();
+    }
+
+    private void OnMentionsChanged(object? sender, EventArgs e)
+    {
+        _hasWaitingPersons = _mentions.WaitingSpeakers.Length > 0;
+        _transcript?.SetWatchedPersons(_mentions.WaitingSpeakers);
+        _tray?.SetMissedCount(_mentions.UnfinishedCount);
     }
 
     private void TestGlow()
@@ -347,10 +441,13 @@ public sealed class AppController : IDisposable
         if (_settingsWindow != null)
         {
             if (showReleaseNotes) _settingsWindow.ShowReleaseNotesTab();
+            if (_settingsWindow.WindowState == System.Windows.WindowState.Minimized)
+                _settingsWindow.WindowState = System.Windows.WindowState.Normal;
             _settingsWindow.Activate();
+            BringSettingsToForeground();
             return;
         }
-        _settingsWindow = new SettingsWindow(_settings,
+        _settingsWindow = new SettingsWindow(_settings, _mentions,
             onApply: applied =>
             {
                 bool langChanged = _settings.Language != applied.Language;
@@ -374,6 +471,16 @@ public sealed class AppController : IDisposable
         };
         if (showReleaseNotes) _settingsWindow.ShowReleaseNotesTab(); // auch beim FRISCH geöffneten Fenster
         _settingsWindow.Show();
+        BringSettingsToForeground();
+    }
+
+    /// <summary>Holt das Einstellungsfenster vor die Vordergrundsperre – aus einer Tray-App heraus
+    /// öffnen sich Fenster sonst im Hintergrund (nur der Taskleisten-Eintrag blinkt).</summary>
+    private void BringSettingsToForeground()
+    {
+        if (_settingsWindow == null) return;
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(_settingsWindow).Handle;
+        Interop.NativeMethods.ForceForeground(hwnd);
     }
 
     /// <summary>Einstellungen von der Platte neu laden und live anwenden.</summary>
@@ -385,12 +492,14 @@ public sealed class AppController : IDisposable
         _settings.CopyFrom(fresh);
         Loc.Language = _settings.Language;
         Logger.Enabled = _settings.DebugLogging;
+        Theme.Apply(_settings.Theme);
         _matcher.UpdateFrom(_settings);
         _glow.Build(); // neu aufbauen, damit Farbe/Dicke UND Monitor-Auswahl greifen
         _glow.SetPersistentBorder(ShouldShowPersistentBorder());
         _matcher.ResetCooldown();
         RegisterHotkeys();
         AutostartManager.Apply(_settings.StartWithWindows);
+        _mentions.Cleanup(_settings.MentionRetentionDays);
         _tray?.Relocalize();
         _tray?.SetMode(Mode);
         _tray?.SetDetection(_settings.DetectionEnabled);
@@ -404,12 +513,14 @@ public sealed class AppController : IDisposable
             _transcript.CaptionReceived -= OnCaptionReceived;
             _transcript.StatusChanged -= OnTranscriptStatusChanged;
             _transcript.IncomingCallVisibleChanged -= OnIncomingCallChanged;
+            _transcript.WatchedPersonSeen -= OnWatchedPersonSeen;
             _transcript.Dispose();
         }
         _autoReturnTimer?.Stop();
         _hotkeys?.Dispose();
         _glow.Dispose();
         _banner.Dispose();
+        _mentionOverlay.Dispose();
         _tray?.Dispose();
         _audio.Dispose();
     }

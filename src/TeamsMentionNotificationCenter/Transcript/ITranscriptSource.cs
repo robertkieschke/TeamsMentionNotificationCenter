@@ -38,6 +38,13 @@ public interface ITranscriptSource : IDisposable
     /// <summary>Feuert bei Sichtbarkeits-Wechsel des Teams-Anruf-Popups (true = eingehender Anruf klingelt).</summary>
     event EventHandler<bool>? IncomingCallVisibleChanged;
 
+    /// <summary>Feuert, wenn eine beobachtete Person in einem Teams-Fenster gesehen wird
+    /// (Teilnehmer-Kachel; experimentell). Liefert den beobachteten Namen.</summary>
+    event EventHandler<string>? WatchedPersonSeen;
+
+    /// <summary>Personen, auf deren Wieder-Erscheinen im Call geachtet werden soll (leer = aus).</summary>
+    void SetWatchedPersons(IReadOnlyCollection<string> names);
+
     void Start();
     void Stop();
 }

@@ -75,4 +75,40 @@ internal static class NativeMethods
         ex |= WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
         SetWindowLong(hwnd, GWL_EXSTYLE, ex);
     }
+
+    private const uint SPI_GETFOREGROUNDLOCKTIMEOUT = 0x2000;
+    private const uint SPI_SETFOREGROUNDLOCKTIMEOUT = 0x2001;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, out uint pvParam, uint fWinIni);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    /// <summary>Holt <paramref name="hWnd"/> zuverlässig in den Vordergrund. Windows blockiert
+    /// SetForegroundWindow, wenn der aufrufende Prozess nicht im Vordergrund ist (Vordergrundsperre) –
+    /// typisch für Tray-Apps ohne sichtbares Fenster. Die Sperre wird kurz auf 0 gesetzt und danach
+    /// wieder auf den alten Wert zurückgestellt (nur im Speicher, nicht persistent).</summary>
+    public static void ForceForeground(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        uint timeout = 0;
+        bool got = false;
+        try
+        {
+            got = SystemParametersInfo(SPI_GETFOREGROUNDLOCKTIMEOUT, 0, out timeout, 0);
+            SystemParametersInfo(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, IntPtr.Zero, 0);
+            SetForegroundWindow(hWnd);
+        }
+        finally
+        {
+            if (got) SystemParametersInfo(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, new IntPtr(timeout), 0);
+        }
+    }
 }

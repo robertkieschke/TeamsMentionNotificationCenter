@@ -33,6 +33,9 @@ public enum PersistentBorderMode
     Always
 }
 
+/// <summary>Farbmodus der Oberfläche.</summary>
+public enum AppThemeMode { System, Light, Dark }
+
 /// <summary>Vertikale Position der Einblendung auf dem Bildschirm.</summary>
 public enum BannerVertical { Top, Center, Bottom }
 
@@ -112,6 +115,20 @@ public sealed class AppSettings
     /// <summary>Monitore für die Einblendung (0-basierte Indizes; leer = alle).</summary>
     public List<int> BannerMonitors { get; set; } = new();
 
+    // --- Verpasste Erwähnungen (Overlay + Liste) ---
+    /// <summary>Nennungen ohne eigene Antwort als „verpasst" erfassen und im Overlay melden.</summary>
+    public bool MissedMentionsEnabled { get; set; } = true;
+    /// <summary>Ohne eigene Wortmeldung innerhalb dieser Zeit gilt eine Nennung als unbeantwortet.</summary>
+    public int MentionAnswerTimeoutSeconds { get; set; } = 30;
+    /// <summary>Neuer Eintrag für DIESELBE Person frühestens nach so vielen Minuten.</summary>
+    public int MentionRepeatMinutes { get; set; } = 3;
+    /// <summary>Einträge automatisch löschen, wenn älter als so viele Tage.</summary>
+    public int MentionRetentionDays { get; set; } = 30;
+    public BannerVertical MentionOverlayVertical { get; set; } = BannerVertical.Top;
+    public BannerHorizontal MentionOverlayHorizontal { get; set; } = BannerHorizontal.Right;
+    /// <summary>Auswahl für „Erinnere mich in X Minuten" (frei erweiterbar).</summary>
+    public List<int> SnoozePresetsMinutes { get; set; } = new() { 5, 15, 30, 60 };
+
     // --- Signalton bei Erkennung ---
     public bool TriggerSoundEnabled { get; set; } = false;
     /// <summary>Pfad zur abzuspielenden WAV-Datei (leer = Windows-Standardton).</summary>
@@ -149,6 +166,9 @@ public sealed class AppSettings
 
     /// <summary>UI-Sprache.</summary>
     public AppLanguage Language { get; set; } = AppLanguage.De;
+
+    /// <summary>Farbmodus der Oberfläche (System folgt der Windows-Einstellung).</summary>
+    public AppThemeMode Theme { get; set; } = AppThemeMode.System;
 
     /// <summary>Nicht-inhaltliches Debug-Log nach %APPDATA%\TeamsMentionNotificationCenter\log.txt (zur Fehlersuche).</summary>
     public bool DebugLogging { get; set; } = false;
@@ -246,6 +266,14 @@ public sealed class AppSettings
         BannerDurationMs = s.BannerDurationMs;
         BannerOpacityPercent = s.BannerOpacityPercent;
         BannerMonitors = s.BannerMonitors;
+        MissedMentionsEnabled = s.MissedMentionsEnabled;
+        MentionAnswerTimeoutSeconds = s.MentionAnswerTimeoutSeconds;
+        MentionRepeatMinutes = s.MentionRepeatMinutes;
+        MentionRetentionDays = s.MentionRetentionDays;
+        MentionOverlayVertical = s.MentionOverlayVertical;
+        MentionOverlayHorizontal = s.MentionOverlayHorizontal;
+        SnoozePresetsMinutes = s.SnoozePresetsMinutes;
+        Theme = s.Theme;
         HotkeyToggle = s.HotkeyToggle;
         HotkeyQuiet = s.HotkeyQuiet;
         HotkeyConversation = s.HotkeyConversation;

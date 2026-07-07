@@ -19,6 +19,12 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
   und Monitore einstellbar, mit Live-Vorschau).
 - **Optionaler Signalton** bei Erkennung (Auswahl aus den Windows-Sounds, Lautstärke und
   Ausgabegerät wählbar, mit Test-Knopf).
+- **Verpasste Erwähnungen:** Antwortest du nach einer Nennung nicht innerhalb einstellbarer Zeit,
+  erscheint ein Overlay im Windows-11-Benachrichtigungsstil (wer hat wann gerufen; Position, Farbe,
+  Deckkraft einstellbar). Einträge lassen sich erledigen, zurückstellen („Erinnere mich in X Minuten",
+  Presets konfigurierbar) oder an die **Rückkehr der Person in den Call** knüpfen. Der erste Reiter im
+  Einstellungsfenster zeigt die Historie nach Tagen gruppiert (orange = offen, grau = zurückgestellt,
+  grün = erledigt) mit Wieder-öffnen- und Lösch-Funktionen (pro Eintrag, pro Tag, alle).
 - **Ton- & Musiksteuerung:** Teams pro Modus laut/leise/stumm (pro App, auf **allen**
   Wiedergabegeräten – auch Multi-Endpunkt-Headsets wie Razer Nari) und Musik (z. B. Spotify)
   automatisch pausieren/fortsetzen (Windows-Mediensteuerung). Einzelne Geräte lassen sich von der
@@ -69,7 +75,8 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
 
 ## Bedienung
 
-- **Einstellungen** öffnest du über das Tray-Menü. Alle Parameter sind dort in Reitern editierbar
+- **Einstellungen** öffnest du per **Doppelklick aufs Tray-Icon** oder über das Tray-Menü.
+  Alle Parameter sind dort in Reitern editierbar
   (Erkennung · Ton & Musik · Glow-Rand · Einblendung · Signalton · Tastenkürzel · Sonstiges ·
   Release Notes · Info) – die Sprache ist zwischen Deutsch, Englisch und Italienisch umschaltbar.
   Ungespeicherte Änderungen werden blau markiert; „Übernehmen" speichert, „Verwerfen" setzt zurück.
@@ -103,6 +110,10 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Die Felder im Üb
 | `EnterConversationOnIncomingCall` | Bei eingehendem Anruf (Klingel-Popup) automatisch in den Gesprächs-Modus. |
 | `AutoReturnToQuietEnabled` / `AutoReturnAfterSeconds` / `AutoReturnAlsoWhenManual` | Auto-Rückkehr in den Ruhe-Modus nach eigener Sprechpause. |
 | `TriggerSoundEnabled` / `TriggerSoundFile` / `TriggerSoundVolume` / `TriggerSoundDeviceId` | Optionaler Signalton bei Erkennung. |
+| `MissedMentionsEnabled` / `MentionAnswerTimeoutSeconds` | Verpasste Erwähnungen erfassen; ohne eigene Antwort innerhalb dieser Zeit entsteht ein Eintrag. |
+| `MentionRepeatMinutes` / `MentionRetentionDays` | Mindestabstand für neue Einträge derselben Person; Auto-Löschung nach X Tagen. |
+| `MentionOverlayVertical` / `MentionOverlayHorizontal` / `MentionOverlayColorHex` / `MentionOverlayOpacityPercent` | Position und Aussehen des Verpasst-Overlays. |
+| `SnoozePresetsMinutes` | Auswahlwerte für „Erinnere mich in X Minuten". |
 | `HotkeyToggle` / `HotkeyQuiet` / `HotkeyConversation` / `HotkeyToggleDetection` | Globale Tastenkürzel. |
 | `StartInConversationMode` / `StartWithWindows` | Startverhalten / Autostart mit Windows. |
 | `CheckUpdatesOnStartup` | Beim Programmstart auf neue GitHub-Releases prüfen. |
@@ -120,9 +131,12 @@ Abschnitt der eingestellten Sprache (sonst den kompletten Text).
 ## Datenschutz
 
 Das Transkript wird **ausschließlich lokal und nur im Arbeitsspeicher** verarbeitet, ausschließlich zum
-Abgleich mit den Trigger-Wörtern – es wird **nichts gespeichert, geloggt oder übertragen**. Untertitel
-müssen in Teams pro Meeting aktiv sein (können durch Admin-Richtlinie deaktiviert sein). Bitte lokale
-Regeln/Mitbestimmung zur Gesprächsmitschrift beachten.
+Abgleich mit den Trigger-Wörtern – Gesprächsinhalte werden **nie gespeichert, geloggt oder übertragen**.
+Einzige lokale Ablage: Für die Funktion **Verpasste Erwähnungen** speichert die App unter `%APPDATA%`
+Sprechername, Uhrzeit und Bearbeitungsstatus der Nennung (keine Inhalte). Diese Einträge werden nach
+einstellbarer Zeit (Standard 30 Tage) automatisch entfernt und sind jederzeit in der App löschbar.
+Untertitel müssen in Teams pro Meeting aktiv sein (können durch Admin-Richtlinie deaktiviert sein).
+Bitte lokale Regeln/Mitbestimmung zur Gesprächsmitschrift beachten.
 
 ## Entwicklung
 
@@ -154,6 +168,8 @@ src/TeamsMentionNotificationCenter/
   Detection/NameMatcher.cs           Normalisierung, Fuzzy-Match, Cooldown, „eigenen Sprecher ignorieren"
   Overlay/GlowOverlay.cs             transparente, klick-durchlässige Rand-Overlays je Monitor
   Overlay/CallerBanner.cs            Einblendung „Wer hat mich gerufen?" (klick-durchlässig, animiert)
+  Overlay/MentionOverlay.cs          Verpasst-Overlay im Win11-Benachrichtigungsstil (interaktiv)
+  Core/MissedMentions.cs             Modell + persistenter Speicher der verpassten Erwähnungen
   Audio/AudioController.cs           Teams-Volume auf allen Geräten (NAudio) + Musik Pause/Resume (SMTC)
   Core/AppController.cs              Zustandsautomat (Ruhe ↔ Gespräch) + Verdrahtung
   Core/UpdateManager.cs              Update-Prüfung, Silent-/Dialog-Update, Release-Notes-Abruf
@@ -166,7 +182,7 @@ src/TeamsMentionNotificationCenter/
   Settings/AppSettings.cs            Einstellungsmodell + JSON-Persistenz
   Settings/SettingsWindow.cs         Einstellungs-Oberfläche (Reiter, blaue Dirty-Markierung)
   Tray/TrayIconManager.cs            System-Tray-Icon & Menü
-tests/TeamsMentionNotificationCenter.Tests/          Unit-Tests (NameMatcher, Release-Notes-Sprachwahl)
+tests/TeamsMentionNotificationCenter.Tests/          Unit-Tests (NameMatcher, Release-Notes-Sprachwahl, Verpasst-Logik)
 tools/TeamsMentionNotificationCenter.Diagnostics/    Diagnose-Tool (UIA-/SMTC-/NAudio-Proben)
 tools/IconGen/                                       erzeugt app.ico aus dem Branding-Logo
 ```

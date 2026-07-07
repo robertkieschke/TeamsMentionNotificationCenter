@@ -133,6 +133,46 @@ public static class Loc
         ["Einblendung testen"] = ("Test banner", "Prova banner"),
         ["Jemand"] = ("Someone", "Qualcuno"),
 
+        // --- Verpasste Erwähnungen ---
+        ["Verpasst"] = ("Missed", "Mancate"),
+        ["Verpasste Erwähnungen"] = ("Missed mentions", "Menzioni perse"),
+        ["Verpasste Erwähnungen …"] = ("Missed mentions …", "Menzioni perse …"),
+        ["Verpasste Erwähnungen ({0}) …"] = ("Missed mentions ({0}) …", "Menzioni perse ({0}) …"),
+        ["Alle erledigen"] = ("Mark all done", "Segna tutte come fatte"),
+        ["Overlay schließen (Einträge bleiben erhalten)"] =
+            ("Close overlay (entries are kept)", "Chiudi l'overlay (le voci restano)"),
+        ["hat dich um {0} gerufen"] = ("called you at {0}", "ti ha chiamato alle {0}"),
+        ["zurückgestellt bis {0}"] = ("snoozed until {0}", "posticipato fino alle {0}"),
+        ["wartet auf Rückkehr"] = ("waiting for return", "in attesa del ritorno"),
+        ["Erledigt"] = ("Done", "Fatto"),
+        ["Erinnere mich in …"] = ("Remind me in …", "Ricordamelo tra …"),
+        ["Erinnere mich in {0} min"] = ("Remind me in {0} min", "Ricordamelo tra {0} min"),
+        ["Erinnern, wenn die Person wieder im Call ist"] =
+            ("Remind me when the person is back in the call", "Ricordami quando la persona torna nella chiamata"),
+        ["Eigener Wert …"] = ("Custom value …", "Valore personalizzato …"),
+        ["Erinnerung entfernen (wieder offen)"] = ("Remove reminder (back to open)", "Rimuovi promemoria (di nuovo aperta)"),
+        ["Minuten:"] = ("Minutes:", "Minuti:"),
+        ["Abbrechen"] = ("Cancel", "Annulla"),
+        ["erledigt {0}"] = ("done {0}", "fatto alle {0}"),
+        ["Wieder öffnen"] = ("Reopen", "Riapri"),
+        ["Löschen"] = ("Delete", "Elimina"),
+        ["Tag löschen"] = ("Delete day", "Elimina giorno"),
+        ["Alle löschen"] = ("Delete all", "Elimina tutte"),
+        ["Heute"] = ("Today", "Oggi"),
+        ["Gestern"] = ("Yesterday", "Ieri"),
+        ["Keine Einträge vorhanden."] = ("No entries yet.", "Nessuna voce presente."),
+        ["Nennungen ohne Antwort als verpasst erfassen"] =
+            ("Track mentions without an answer as missed", "Registra come perse le menzioni senza risposta"),
+        ["Als unbeantwortet nach (Sekunden):"] =
+            ("Counts as unanswered after (seconds):", "Considera senza risposta dopo (secondi):"),
+        ["Gleiche Person erneut frühestens nach (Minuten):"] =
+            ("Same person again after at least (minutes):", "Stessa persona di nuovo dopo almeno (minuti):"),
+        ["Einträge automatisch löschen nach (Tagen):"] =
+            ("Delete entries automatically after (days):", "Elimina automaticamente le voci dopo (giorni):"),
+        ["Snooze-Auswahl (Minuten, kommagetrennt):"] =
+            ("Snooze choices (minutes, comma-separated):", "Scelte di posticipo (minuti, separati da virgola):"),
+        ["Einstellungen"] = ("Settings", "Impostazioni"),
+
         // --- Signalton ---
         ["Bei Erkennung zusätzlich einen Ton abspielen"] = ("Also play a sound on detection", "Riproduci anche un suono al rilevamento"),
         ["Ton:"] = ("Sound:", "Suono:"),
@@ -153,6 +193,10 @@ public static class Loc
 
         // --- Sonstiges ---
         ["Sprache:"] = ("Language:", "Lingua:"),
+        ["Farbmodus:"] = ("Color mode:", "Modalità colore:"),
+        ["System"] = ("System", "Sistema"),
+        ["Hell"] = ("Light", "Chiaro"),
+        ["Dunkel"] = ("Dark", "Scuro"),
         ["Beim Start im Gesprächs-Modus starten (erster Ruhe-Modus muss aktiv gewählt werden)"] =
             ("Start in conversation mode (first quiet mode must be chosen manually)",
              "Avvia in modalità conversazione (la prima modalità silenziosa va scelta manualmente)"),
