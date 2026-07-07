@@ -132,6 +132,62 @@ public static class Theme
         catch { /* ältere Windows-Builds */ }
     }
 
+    /// <summary>Themed Ersatz für MessageBox.Show (nur OK): Karte im App-Design mit MDL2-Icon.
+    /// Blockiert wie eine MessageBox, bis der Nutzer bestätigt.</summary>
+    public static void ShowMessage(string text, bool warning = false, string? title = null)
+    {
+        var icon = new TextBlock
+        {
+            Text = warning ? "" : "", // MDL2: Warning / Info
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = 26,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 2, 14, 0)
+        };
+        if (warning) icon.Foreground = new SolidColorBrush(Color.FromRgb(0xE8, 0x8A, 0x1A));
+        else icon.SetResourceReference(TextBlock.ForegroundProperty, "ThAccent");
+
+        var body = new TextBlock
+        {
+            Text = text,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 400,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(icon);
+        content.Children.Add(body);
+
+        var ok = new Button
+        {
+            Content = "OK",
+            Padding = new Thickness(24, 5, 24, 5),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+            IsDefault = true,
+            IsCancel = true
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(18) };
+        panel.Children.Add(content);
+        panel.Children.Add(ok);
+
+        var win = new Window
+        {
+            Title = title ?? AppInfo.DisplayName,
+            Content = panel,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Topmost = true,
+            ShowInTaskbar = true,
+            Icon = Branding.CreateImageSource(64, Branding.Accent)
+        };
+        Prepare(win);
+        ok.Click += (_, _) => win.Close();
+        win.ShowDialog();
+    }
+
     /// <summary>Setzt die dünne Win11-Scroll-Optik auf einen ScrollViewer (explizit statt implizit).</summary>
     public static void ThinScroll(ScrollViewer sv) =>
         sv.SetResourceReference(FrameworkElement.StyleProperty, "ThScrollViewer");

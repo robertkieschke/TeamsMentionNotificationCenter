@@ -27,8 +27,12 @@ public partial class App : Application
         DispatcherUnhandledException += (_, ex) =>
         {
             Core.Logger.Log("UNBEHANDELTE UI-AUSNAHME: " + ex.Exception);
-            MessageBox.Show(ex.Exception.Message, AppInfo.DisplayName + " – Fehler",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            try { Core.Theme.ShowMessage(ex.Exception.Message, warning: true, title: AppInfo.DisplayName + " – Fehler"); }
+            catch // wenn ausgerechnet das Rendering defekt ist: native Rückfallebene
+            {
+                MessageBox.Show(ex.Exception.Message, AppInfo.DisplayName + " – Fehler",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
             ex.Handled = true;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
@@ -48,11 +52,8 @@ public partial class App : Application
             {
                 _singleInstanceMutex.Dispose();
                 _singleInstanceMutex = null;
-                MessageBox.Show(
-                    Localization.Loc.T("Die Anwendung läuft bereits – du findest sie als Symbol im Infobereich der Taskleiste (Tray). Diese zusätzliche Instanz wird jetzt beendet."),
-                    AppInfo.DisplayName,
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                Core.Theme.ShowMessage(
+                    Localization.Loc.T("Die Anwendung läuft bereits – du findest sie als Symbol im Infobereich der Taskleiste (Tray). Diese zusätzliche Instanz wird jetzt beendet."));
                 Shutdown();
                 return;
             }

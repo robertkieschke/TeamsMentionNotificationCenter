@@ -172,9 +172,7 @@ public sealed class AppController : IDisposable
             if (release == null)
             {
                 if (manual)
-                    System.Windows.MessageBox.Show(
-                        Loc.Tf("Du verwendest bereits die neueste Version ({0}).", AppInfo.Version),
-                        AppInfo.DisplayName, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                    Theme.ShowMessage(Loc.Tf("Du verwendest bereits die neueste Version ({0}).", AppInfo.Version));
                 return;
             }
 
@@ -201,9 +199,7 @@ public sealed class AppController : IDisposable
         {
             Logger.Log($"Update-Prüfung/-Installation fehlgeschlagen: {ex.Message}");
             if (manual)
-                System.Windows.MessageBox.Show(
-                    Loc.Tf("Update fehlgeschlagen: {0}", ex.Message),
-                    AppInfo.DisplayName, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                Theme.ShowMessage(Loc.Tf("Update fehlgeschlagen: {0}", ex.Message), warning: true);
         }
     }
 

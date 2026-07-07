@@ -96,8 +96,7 @@ public static class InstallManager
         catch (Exception ex)
         {
             Logger.Log("Installation fehlgeschlagen: " + ex.Message);
-            MessageBox.Show(Loc.Tf("Installation fehlgeschlagen: {0}", ex.Message),
-                AppInfo.DisplayName, MessageBoxButton.OK, MessageBoxImage.Warning);
+            Theme.ShowMessage(Loc.Tf("Installation fehlgeschlagen: {0}", ex.Message), warning: true);
             return false; // portabel weiterlaufen
         }
     }
