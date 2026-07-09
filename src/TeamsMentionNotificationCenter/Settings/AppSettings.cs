@@ -71,8 +71,9 @@ public sealed class AppSettings
     public int QuietLevelPercent { get; set; } = 15;
     /// <summary>Teams-Lautstärke im Gesprächs-Modus (%).</summary>
     public int ConversationLevelPercent { get; set; } = 100;
-    /// <summary>Teilstring der Medien-App (SMTC AppUserModelId), z. B. "Spotify".</summary>
-    public string MusicAppHint { get; set; } = "Spotify";
+    /// <summary>Musiksteuerung auf diese Quellen beschränken (Teilstrings der SMTC-AppUserModelId,
+    /// z. B. "spotify", "chrome"). LEER = alle gerade spielenden Quellen pausieren/fortsetzen.</summary>
+    public List<string> MusicAppFilter { get; set; } = new();
     /// <summary>Wiedergabegeräte (Endpoint-IDs), deren Teams-Ton NIE automatisch geändert wird –
     /// z. B. das Gerät des Teams-„Zweiten Rufsignals", damit das Klingeln zusätzlicher Anrufe laut bleibt.</summary>
     public List<string> AudioExcludedDeviceIds { get; set; } = new();
@@ -268,7 +269,7 @@ public sealed class AppSettings
         QuietBehavior = s.QuietBehavior;
         QuietLevelPercent = s.QuietLevelPercent;
         ConversationLevelPercent = s.ConversationLevelPercent;
-        MusicAppHint = s.MusicAppHint;
+        MusicAppFilter = s.MusicAppFilter;
         AudioExcludedDeviceIds = s.AudioExcludedDeviceIds;
         AutoEnterConversationOnTrigger = s.AutoEnterConversationOnTrigger;
         RaiseTeamsOnTrigger = s.RaiseTeamsOnTrigger;

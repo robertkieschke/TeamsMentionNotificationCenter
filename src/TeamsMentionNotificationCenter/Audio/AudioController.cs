@@ -21,16 +21,30 @@ public sealed class AudioController : IDisposable
 {
     private readonly AppSettings _settings;
     private GlobalSystemMediaTransportControlsSessionManager? _smtc;
-    private volatile bool _musicPausedByUs;
+    // AppUserModelIds der Sitzungen, die WIR pausiert haben – genau diese werden fortgesetzt.
+    private readonly List<string> _pausedByUs = new();
+    private bool _legacyResumeCurrent; // Update-Neustart aus einer Vorversion: nur „irgendwas war pausiert" bekannt
 
     public AudioController(AppSettings settings) => _settings = settings;
 
-    /// <summary>True, wenn WIR die Musik pausiert haben (Basis fürs Auto-Fortsetzen im Ruhe-Modus).</summary>
-    public bool MusicPausedByUs => _musicPausedByUs;
+    /// <summary>Von UNS pausierte Sitzungen (für die Zustands-Übergabe beim Update-Neustart).</summary>
+    public string[] PausedSessionIds => _pausedByUs.ToArray();
 
-    /// <summary>Stellt den Pausiert-von-uns-Merker nach einem Update-Neustart wieder her, damit die
-    /// Musik beim nächsten Ruhe-Modus weiterhin automatisch fortgesetzt wird.</summary>
-    public void MarkMusicPausedByUs() => _musicPausedByUs = true;
+    /// <summary>Stellt die Pausiert-von-uns-Liste nach einem Update-Neustart wieder her.</summary>
+    public void RestorePausedSessions(IEnumerable<string> ids)
+    {
+        _pausedByUs.Clear();
+        _pausedByUs.AddRange(ids.Where(id => !string.IsNullOrWhiteSpace(id)));
+    }
+
+    /// <summary>Kompatibilität: Vorversionen übergeben nur ein Flag statt der Sitzungs-Liste.</summary>
+    public void MarkLegacyPausedByUs() => _legacyResumeCurrent = true;
+
+    /// <summary>Passt die Quelle zum Filter? Leerer Filter = alle Quellen.</summary>
+    public static bool SourceMatchesFilter(string appUserModelId, IReadOnlyCollection<string> filter) =>
+        filter.Count == 0 ||
+        filter.Any(f => !string.IsNullOrWhiteSpace(f) &&
+                        (appUserModelId ?? "").Contains(f.Trim(), StringComparison.OrdinalIgnoreCase));
 
     public async Task InitAsync()
     {
@@ -108,49 +122,69 @@ public sealed class AudioController : IDisposable
     }
 
     // --- Musik (SMTC) -----------------------------------------------------
+    // „Pausiere, was gerade spielt": ALLE spielenden Mediensitzungen (Spotify, YouTube/Amazon
+    // Music im Browser, …) werden pausiert und gemerkt – fortgesetzt wird später GENAU diese
+    // Liste. Der optionale Filter (Mehrfachauswahl) beschränkt das auf ausgewählte Quellen.
     private async Task PauseMusicAsync()
-    {
-        var session = await GetMusicSessionAsync();
-        if (session == null) return;
-        try
-        {
-            var status = session.GetPlaybackInfo().PlaybackStatus;
-            if (status == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing &&
-                await session.TryPauseAsync())
-            {
-                _musicPausedByUs = true;
-            }
-        }
-        catch { }
-    }
-
-    private async Task ResumeMusicAsync()
-    {
-        if (!_musicPausedByUs) return;       // nur fortsetzen, was wir selbst pausiert haben
-        _musicPausedByUs = false;
-        var session = await GetMusicSessionAsync();
-        if (session == null) return;
-        try { await session.TryPlayAsync(); }
-        catch { }
-    }
-
-    private async Task<GlobalSystemMediaTransportControlsSession?> GetMusicSessionAsync()
     {
         try
         {
             _smtc ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-            if (_smtc == null) return null;
+            if (_smtc == null) return;
 
-            var hint = _settings.MusicAppHint ?? "";
-            if (hint.Length > 0)
+            var filter = _settings.MusicAppFilter ?? new List<string>();
+            int paused = 0;
+            foreach (var session in _smtc.GetSessions())
             {
-                foreach (var s in _smtc.GetSessions())
-                    if ((s.SourceAppUserModelId ?? "").Contains(hint, StringComparison.OrdinalIgnoreCase))
-                        return s;
+                var id = session.SourceAppUserModelId ?? "";
+                if (!SourceMatchesFilter(id, filter)) continue;
+                if (session.GetPlaybackInfo().PlaybackStatus !=
+                    GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing) continue;
+                if (await session.TryPauseAsync())
+                {
+                    paused++;
+                    if (!_pausedByUs.Contains(id, StringComparer.OrdinalIgnoreCase))
+                        _pausedByUs.Add(id);
+                }
             }
-            return _smtc.GetCurrentSession(); // Fallback: aktive Medien-Session
+            if (paused > 0)
+                Logger.Log($"Musik: {paused} Wiedergabe(n) pausiert ({string.Join(", ", _pausedByUs)})");
         }
-        catch { return null; }
+        catch { /* SMTC nicht verfügbar -> ignorieren */ }
+    }
+
+    private async Task ResumeMusicAsync()
+    {
+        try
+        {
+            bool legacy = _legacyResumeCurrent;
+            _legacyResumeCurrent = false;
+            var ids = _pausedByUs.ToArray();
+            _pausedByUs.Clear();
+            if (ids.Length == 0 && !legacy) return; // nur fortsetzen, was wir selbst pausiert haben
+
+            _smtc ??= await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+            if (_smtc == null) return;
+
+            int resumed = 0;
+            if (ids.Length > 0)
+            {
+                var sessions = _smtc.GetSessions();
+                foreach (var id in ids)
+                {
+                    var session = sessions.FirstOrDefault(s =>
+                        string.Equals(s.SourceAppUserModelId, id, StringComparison.OrdinalIgnoreCase));
+                    if (session != null && await session.TryPlayAsync()) resumed++;
+                }
+            }
+            else if (legacy)
+            {
+                var current = _smtc.GetCurrentSession();
+                if (current != null && await current.TryPlayAsync()) resumed++;
+            }
+            if (resumed > 0) Logger.Log($"Musik: {resumed} Wiedergabe(n) fortgesetzt");
+        }
+        catch { /* Quelle inzwischen weg (z. B. Tab geschlossen) -> ignorieren */ }
     }
 
     public void Dispose() { /* nichts zu entsorgen */ }

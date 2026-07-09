@@ -46,8 +46,12 @@ public sealed class AppController : IDisposable
     /// <summary>Nach einem Update-Neustart wiederherzustellender Modus (aus --resume-mode).</summary>
     public AppMode? ResumeMode { get; set; }
 
-    /// <summary>Nach einem Update-Neustart: Musik war von UNS pausiert (aus --resume-music-paused).</summary>
+    /// <summary>Nach einem Update-Neustart: Musik war von UNS pausiert (aus --resume-music-paused,
+    /// Kompatibilität zu Vorversionen ohne Sitzungs-Liste).</summary>
     public bool ResumeMusicPausedByUs { get; set; }
+
+    /// <summary>Nach einem Update-Neustart: die von UNS pausierten Mediensitzungen (aus --resume-paused).</summary>
+    public string[]? ResumePausedSessionIds { get; set; }
 
     /// <summary>Version, VON der gerade aktualisiert wurde (aus --updated-from) – löst die
     /// einmalige „Was ist neu"-Anzeige aus.</summary>
@@ -109,7 +113,8 @@ public sealed class AppController : IDisposable
 
         // Startmodus: nach einem Update-Neustart den vorherigen Zustand wiederherstellen,
         // sonst gemäß Einstellung (Standard: manueller Gesprächs-Modus).
-        if (ResumeMusicPausedByUs) _audio.MarkMusicPausedByUs();
+        if (ResumePausedSessionIds is { Length: > 0 }) _audio.RestorePausedSessions(ResumePausedSessionIds);
+        else if (ResumeMusicPausedByUs) _audio.MarkLegacyPausedByUs();
         SetMode(ResumeMode ?? (_settings.StartInConversationMode ? AppMode.Conversation : AppMode.Quiet), fromTrigger: false);
 
         // Verzögert auf Updates prüfen (blockiert den Start nicht; meldet sich nur bei neuer Version).
@@ -159,8 +164,13 @@ public sealed class AppController : IDisposable
 
     /// <summary>Argumente für den Neustart nach einem Update, damit die neue Instanz den
     /// aktuellen Zustand nahtlos wiederherstellt.</summary>
-    private string BuildResumeArguments() =>
-        $"--resume-mode={Mode} --updated-from={AppInfo.Version}" + (_audio.MusicPausedByUs ? " --resume-music-paused" : "");
+    private string BuildResumeArguments()
+    {
+        var args = $"--resume-mode={Mode} --updated-from={AppInfo.Version}";
+        if (_audio.PausedSessionIds is { Length: > 0 } paused)
+            args += " --resume-paused=\"" + string.Join(";", paused) + "\"";
+        return args;
+    }
 
     /// <summary>Update-Prüfung. Bei manueller Prüfung (Tray) gibt es IMMER eine Rückmeldung,
     /// beim Start-Check nur, wenn tatsächlich eine neue Version existiert.</summary>

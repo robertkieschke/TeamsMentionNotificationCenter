@@ -64,6 +64,7 @@ public partial class App : Application
         // Nach einem (Silent-)Update-Neustart: vorherigen Zustand aus den Argumenten wiederherstellen.
         AppMode? resumeMode = null;
         bool resumeMusicPaused = false;
+        string[]? resumePausedIds = null;
         string? updatedFrom = null;
         foreach (var arg in e.Args)
         {
@@ -71,7 +72,10 @@ public partial class App : Application
                 Enum.TryParse<AppMode>(arg["--resume-mode=".Length..], ignoreCase: true, out var m))
                 resumeMode = m;
             else if (string.Equals(arg, "--resume-music-paused", StringComparison.OrdinalIgnoreCase))
-                resumeMusicPaused = true;
+                resumeMusicPaused = true; // Kompatibilität: Update-Neustart aus einer Vorversion
+            else if (arg.StartsWith("--resume-paused=", StringComparison.OrdinalIgnoreCase))
+                resumePausedIds = arg["--resume-paused=".Length..].Trim('"')
+                    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             else if (arg.StartsWith("--updated-from=", StringComparison.OrdinalIgnoreCase))
                 updatedFrom = arg["--updated-from=".Length..];
         }
@@ -97,6 +101,7 @@ public partial class App : Application
         {
             ResumeMode = resumeMode,
             ResumeMusicPausedByUs = resumeMusicPaused,
+            ResumePausedSessionIds = resumePausedIds,
             UpdatedFromVersion = updatedFrom
         };
         _controller.Start();

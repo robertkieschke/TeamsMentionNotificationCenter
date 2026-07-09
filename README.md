@@ -26,8 +26,10 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
   Einstellungsfenster zeigt die Historie nach Tagen gruppiert (orange = offen, grau = zurückgestellt,
   grün = erledigt) mit Wieder-öffnen- und Lösch-Funktionen (pro Eintrag, pro Tag, alle).
 - **Ton- & Musiksteuerung:** Teams pro Modus laut/leise/stumm (pro App, auf **allen**
-  Wiedergabegeräten – auch Multi-Endpunkt-Headsets wie Razer Nari) und Musik (z. B. Spotify)
-  automatisch pausieren/fortsetzen (Windows-Mediensteuerung). Einzelne Geräte lassen sich von der
+  Wiedergabegeräten – auch Multi-Endpunkt-Headsets wie Razer Nari). Beim Gesprächsstart wird
+  **alles pausiert, was gerade spielt** – Spotify genauso wie YouTube oder Amazon Music im Browser
+  (Windows-Mediensteuerung) – und beim Zurückschalten **exakt das** fortgesetzt. Optional auf
+  ausgewählte Quellen beschränkbar (Mehrfachauswahl). Einzelne Wiedergabegeräte lassen sich von der
   Automatik ausnehmen (z. B. das Gerät des Teams-„Zweiten Rufsignals").
 - **Zwei Modi:** *Ruhe* (Teams leise, Musik läuft) ↔ *Gespräch* (Teams laut, Musik pausiert).
   Automatischer Wechsel bei Treffer, optionale Auto-Rückkehr nach eigener Sprechpause.
@@ -108,7 +110,7 @@ nach `%APPDATA%\TeamsMentionNotificationCenter\settings.json`. Die Felder im Üb
 | `BannerVertical` / `BannerHorizontal` | Position: `Top`/`Center`/`Bottom` × `Left`/`Center`/`Right`. |
 | `BannerFontSize` / `BannerColorHex` / `BannerDurationMs` / `BannerOpacityPercent` / `BannerMonitors` | Aussehen der Einblendung (Monitore leer = alle). |
 | `QuietBehavior` / `QuietLevelPercent` / `ConversationLevelPercent` | Teams-Ton je Modus (leiser oder stumm). |
-| `MusicAppHint` | Medien-App für Pause/Resume (z. B. `Spotify`). |
+| `MusicAppFilter` | Musiksteuerung auf diese Quellen beschränken (Mehrfachauswahl, z. B. `spotify`, `chrome`); leer = alle gerade spielenden Quellen. |
 | `AudioExcludedDeviceIds` | Wiedergabegeräte, die nie automatisch angepasst werden – z. B. das Gerät des Teams-„Zweiten Rufsignals", damit das Klingeln zusätzlicher Anrufe laut bleibt. |
 | `AutoEnterConversationOnTrigger` / `RaiseTeamsOnTrigger` / `PauseMusicOnTrigger` | Auto-Aktionen bei Treffer. |
 | `EnterConversationOnIncomingCall` | Bei eingehendem Anruf (Klingel-Popup) automatisch in den Gesprächs-Modus. |

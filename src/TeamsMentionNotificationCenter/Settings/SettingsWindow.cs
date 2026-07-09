@@ -32,7 +32,17 @@ public sealed class SettingsWindow : Window
     private readonly ComboBox _quietBehavior = Combo();
     private readonly TextBox _quietLevel = Num();
     private readonly TextBox _convLevel = Num();
-    private readonly TextBox _musicHint = new() { Width = 200, HorizontalAlignment = HorizontalAlignment.Left };
+    // Musik-Quellen-Filter (Mehrfachauswahl; nichts gewählt = alle spielenden Quellen steuern)
+    private static readonly (string Label, string Token)[] MusicSources =
+    {
+        ("Spotify", "spotify"),
+        ("Google Chrome", "chrome"),
+        ("Microsoft Edge", "msedge"),
+        ("Firefox", "firefox"),
+        ("Amazon Music", "amazon")
+    };
+    private readonly List<CheckBox> _musicSourceChecks = new();
+    private readonly TextBox _musicCustom = new() { Width = 260, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly CheckBox _manageTeams = new() { Content = Loc.T("Teams-Ton automatisch steuern (laut/leise)") };
     private readonly CheckBox _manageMusic = new() { Content = Loc.T("Musik automatisch steuern (Pause/Fortsetzen)") };
     private readonly CheckBox _autoConv = new() { Content = Loc.T("Bei Namensnennung automatisch in den Gesprächs-Modus") };
@@ -212,6 +222,21 @@ public sealed class SettingsWindow : Window
             },
             new FrameworkElement[] { _triggerWords, _ownSpeaker, _ignoreOwn, _fuzzy, _fuzzyDist, _cooldown }));
 
+        foreach (var (label, _) in MusicSources)
+            _musicSourceChecks.Add(new CheckBox { Content = label });
+        var musicGroup = new List<UIElement>
+        {
+            new TextBlock { Text = Loc.T("Musik-Steuerung auf diese Quellen beschränken (nichts gewählt = alle):"), FontWeight = FontWeights.SemiBold }
+        };
+        musicGroup.AddRange(_musicSourceChecks);
+        musicGroup.Add(Row(Loc.T("Weitere Quellen (Kennungs-Teile, kommagetrennt):"), _musicCustom));
+        musicGroup.Add(new TextBlock
+        {
+            Text = Loc.T("Pausiert wird beim Gesprächsstart alles, was gerade spielt (Spotify, YouTube/Amazon Music im Browser, …) – fortgesetzt wird genau das."),
+            Foreground = System.Windows.Media.Brushes.Gray,
+            TextWrapping = TextWrapping.Wrap
+        });
+
         var deviceGroup = new List<UIElement>
         {
             new TextBlock { Text = Loc.T("Diese Wiedergabegeräte nie automatisch anpassen:"), FontWeight = FontWeights.SemiBold }
@@ -228,11 +253,12 @@ public sealed class SettingsWindow : Window
             Group(Row(Loc.T("Teams im Ruhe-Modus:"), _quietBehavior),
                   Row(Loc.T("Teams Ruhe-Lautstärke (%):"), _quietLevel),
                   Row(Loc.T("Teams Gesprächs-Lautstärke (%):"), _convLevel)),
-            Row(Loc.T("Musik-App (SMTC-Kennung):"), _musicHint),
             Group(_manageTeams, _manageMusic, _autoConv, _convOnCall),
+            Group(musicGroup.ToArray()),
             Group(deviceGroup.ToArray())
         };
-        var audioInputs = new List<FrameworkElement> { _quietBehavior, _quietLevel, _convLevel, _musicHint, _manageTeams, _manageMusic, _autoConv, _convOnCall };
+        var audioInputs = new List<FrameworkElement> { _quietBehavior, _quietLevel, _convLevel, _manageTeams, _manageMusic, _autoConv, _convOnCall, _musicCustom };
+        audioInputs.AddRange(_musicSourceChecks);
         audioInputs.AddRange(_audioExcludeChecks);
         tabControl.Items.Add(MakeTab(Loc.T("Ton & Musik"), "", audioRows.ToArray(), audioInputs.ToArray()));
 
@@ -730,7 +756,11 @@ public sealed class SettingsWindow : Window
         _quietBehavior.SelectedIndex = s.QuietBehavior == QuietBehavior.Mute ? 1 : 0;
         _quietLevel.Text = s.QuietLevelPercent.ToString();
         _convLevel.Text = s.ConversationLevelPercent.ToString();
-        _musicHint.Text = s.MusicAppHint;
+        var filter = (s.MusicAppFilter ?? new List<string>()).Select(t => t.Trim()).Where(t => t.Length > 0).ToList();
+        for (int i = 0; i < MusicSources.Length; i++)
+            _musicSourceChecks[i].IsChecked = filter.Any(t => string.Equals(t, MusicSources[i].Token, StringComparison.OrdinalIgnoreCase));
+        _musicCustom.Text = string.Join(", ", filter.Where(t =>
+            !MusicSources.Any(ms => string.Equals(ms.Token, t, StringComparison.OrdinalIgnoreCase))));
         _manageTeams.IsChecked = s.RaiseTeamsOnTrigger;
         _manageMusic.IsChecked = s.PauseMusicOnTrigger;
         _autoConv.IsChecked = s.AutoEnterConversationOnTrigger;
@@ -824,7 +854,13 @@ public sealed class SettingsWindow : Window
         s.QuietBehavior = _quietBehavior.SelectedIndex == 1 ? QuietBehavior.Mute : QuietBehavior.Lower;
         s.QuietLevelPercent = ParseInt(_quietLevel.Text, s.QuietLevelPercent, 0, 100);
         s.ConversationLevelPercent = ParseInt(_convLevel.Text, s.ConversationLevelPercent, 0, 100);
-        s.MusicAppHint = _musicHint.Text.Trim();
+        var musicFilter = new List<string>();
+        for (int i = 0; i < MusicSources.Length; i++)
+            if (_musicSourceChecks[i].IsChecked == true) musicFilter.Add(MusicSources[i].Token);
+        musicFilter.AddRange(_musicCustom.Text
+            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(t => !musicFilter.Contains(t, StringComparer.OrdinalIgnoreCase)));
+        s.MusicAppFilter = musicFilter;
         s.RaiseTeamsOnTrigger = _manageTeams.IsChecked == true;
         s.PauseMusicOnTrigger = _manageMusic.IsChecked == true;
         s.AutoEnterConversationOnTrigger = _autoConv.IsChecked == true;

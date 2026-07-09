@@ -108,6 +108,14 @@ public static class Loc
              "Passa automaticamente alla modalità conversazione quando arriva una chiamata (lo squillo diventa forte)"),
         ["Eingehender Anruf – Gesprächs-Modus aktiviert"] =
             ("Incoming call – conversation mode activated", "Chiamata in arrivo – modalità conversazione attivata"),
+        ["Musik-Steuerung auf diese Quellen beschränken (nichts gewählt = alle):"] =
+            ("Restrict music control to these sources (none selected = all):",
+             "Limita il controllo della musica a queste sorgenti (nessuna selezionata = tutte):"),
+        ["Weitere Quellen (Kennungs-Teile, kommagetrennt):"] =
+            ("More sources (id fragments, comma-separated):", "Altre sorgenti (frammenti di ID, separati da virgola):"),
+        ["Pausiert wird beim Gesprächsstart alles, was gerade spielt (Spotify, YouTube/Amazon Music im Browser, …) – fortgesetzt wird genau das."] =
+            ("On conversation start everything currently playing is paused (Spotify, YouTube/Amazon Music in the browser, …) – and exactly that is resumed.",
+             "All'inizio della conversazione viene messo in pausa tutto ciò che sta suonando (Spotify, YouTube/Amazon Music nel browser, …) – e viene ripreso esattamente quello."),
         ["Diese Wiedergabegeräte nie automatisch anpassen:"] =
             ("Never adjust these playback devices automatically:", "Non regolare mai automaticamente questi dispositivi di riproduzione:"),
         ["Tipp: In Teams ein 'Zweites Rufsignal' auf ein hier ausgeschlossenes Gerät legen (z. B. Lautsprecher) – dann bleibt das Klingeln zusätzlicher Anrufe immer laut, während der Call leise wird."] =
