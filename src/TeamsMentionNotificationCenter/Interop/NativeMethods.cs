@@ -76,6 +76,29 @@ internal static class NativeMethods
         SetWindowLong(hwnd, GWL_EXSTYLE, ex);
     }
 
+    private const uint SPI_GETWORKAREA = 0x0030;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, ref RECT pvParam, uint fWinIni);
+
+    /// <summary>Arbeitsbereich des PRIMÄRmonitors in physischen Pixeln – frisch vom System
+    /// (kein WPF-Cache; nach Standby/Monitorwechseln zuverlässig).</summary>
+    public static RECT GetPrimaryWorkArea()
+    {
+        var r = new RECT();
+        if (SystemParametersInfo(SPI_GETWORKAREA, 0, ref r, 0) && r.Width > 0 && r.Height > 0)
+            return r;
+        double scale = GetSystemScale();
+        return new RECT
+        {
+            Left = 0,
+            Top = 0,
+            Right = (int)(System.Windows.SystemParameters.PrimaryScreenWidth * scale),
+            Bottom = (int)(System.Windows.SystemParameters.PrimaryScreenHeight * scale)
+        };
+    }
+
     private const uint SPI_GETFOREGROUNDLOCKTIMEOUT = 0x2000;
     private const uint SPI_SETFOREGROUNDLOCKTIMEOUT = 0x2001;
 

@@ -22,6 +22,7 @@ public sealed class MentionOverlay : IDisposable
     private Window? _win;
     private StackPanel? _list;
     private Border? _card;
+    private bool _reallyClose;
 
     private static readonly Brush OpenBrush = new SolidColorBrush(Color.FromRgb(0xE8, 0x8A, 0x1A));   // orange
     private static readonly Brush WaitBrush = new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E));   // grau
@@ -40,10 +41,16 @@ public sealed class MentionOverlay : IDisposable
         };
     }
 
-    /// <summary>Overlay anzeigen (erzeugt es bei Bedarf) und Inhalt aktualisieren.</summary>
+    /// <summary>True, wenn das Overlay gerade sichtbar ist.</summary>
+    public bool IsOverlayVisible => _win is { IsVisible: true };
+
+    /// <summary>Overlay anzeigen und Inhalt aktualisieren. Das Fenster wird dabei bewusst FRISCH
+    /// erzeugt: Nach Standby/Monitorwechseln verschiebt Windows bestehende (auch versteckte)
+    /// Fenster und ändert ihre DPI-Zuordnung – ein neues Fenster landet garantiert korrekt.</summary>
     public void ShowOverlay()
     {
         if (_store.UnfinishedCount == 0) return;
+        DestroyWindow();
         EnsureWindow();
         Rebuild();
         _win!.Show();
@@ -51,6 +58,17 @@ public sealed class MentionOverlay : IDisposable
     }
 
     public void HideOverlay() => _win?.Hide();
+
+    private void DestroyWindow()
+    {
+        if (_win == null) return;
+        _reallyClose = true;
+        try { _win.Close(); } catch { /* ignore */ }
+        _reallyClose = false;
+        _win = null;
+        _card = null;
+        _list = null;
+    }
 
     private void EnsureWindow()
     {
@@ -83,7 +101,13 @@ public sealed class MentionOverlay : IDisposable
         };
         _win.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, "ThText");
         _win.SizeChanged += (_, _) => Reposition();
-        _win.Closing += (_, e) => { e.Cancel = true; _win!.Hide(); }; // Alt+F4 etc.: nur verstecken
+        var closingWin = _win;
+        _win.Closing += (_, e) =>
+        {
+            if (_reallyClose) return;      // programmatischer Neuaufbau
+            e.Cancel = true;               // Alt+F4 etc.: nur verstecken, Daten bleiben
+            closingWin.Hide();
+        };
     }
 
     /// <summary>Baut den kompletten Karteninhalt aus dem Store neu auf.</summary>
@@ -303,23 +327,27 @@ public sealed class MentionOverlay : IDisposable
     }
 
     /// <summary>Positioniert das Overlay gemäß Einstellungen im Arbeitsbereich des Primärmonitors
-    /// (Win11-Standard: unten rechts, 16 px Rand).</summary>
+    /// (16 px Rand). Der Arbeitsbereich kommt frisch vom System (physische Pixel -> DIP), nicht aus
+    /// dem WPF-Cache – der kann nach Standby/Monitorwechseln veraltet sein.</summary>
     private void Reposition()
     {
         if (_win == null || !_win.IsVisible) return;
-        var wa = SystemParameters.WorkArea;
+        var work = Interop.NativeMethods.GetPrimaryWorkArea();
+        double scale = Interop.NativeMethods.GetSystemScale();
+        double left = work.Left / scale, top = work.Top / scale;
+        double right = work.Right / scale, bottom = work.Bottom / scale;
         const double margin = 16;
         _win.Left = _settings.MentionOverlayHorizontal switch
         {
-            BannerHorizontal.Left => wa.Left + margin,
-            BannerHorizontal.Center => wa.Left + (wa.Width - _win.ActualWidth) / 2,
-            _ => wa.Right - _win.ActualWidth - margin
+            BannerHorizontal.Left => left + margin,
+            BannerHorizontal.Center => left + ((right - left) - _win.ActualWidth) / 2,
+            _ => right - _win.ActualWidth - margin
         };
         _win.Top = _settings.MentionOverlayVertical switch
         {
-            BannerVertical.Top => wa.Top + margin,
-            BannerVertical.Center => wa.Top + (wa.Height - _win.ActualHeight) / 2,
-            _ => wa.Bottom - _win.ActualHeight - margin
+            BannerVertical.Top => top + margin,
+            BannerVertical.Center => top + ((bottom - top) - _win.ActualHeight) / 2,
+            _ => bottom - _win.ActualHeight - margin
         };
     }
 
@@ -334,6 +362,6 @@ public sealed class MentionOverlay : IDisposable
 
     public void Dispose()
     {
-        try { _win?.Hide(); } catch { /* App fährt herunter */ }
+        try { DestroyWindow(); } catch { /* App fährt herunter */ }
     }
 }

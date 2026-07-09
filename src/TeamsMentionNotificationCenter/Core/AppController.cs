@@ -130,6 +130,11 @@ public sealed class AppController : IDisposable
             periodicTimer.Start();
         }
 
+        // Nach Standby oder Monitor-Umbau verschiebt Windows dauerhaft lebende Fenster (Glow!)
+        // bzw. ändert deren DPI-Zuordnung – dann alles neu aufbauen/positionieren.
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+
         // Noch offene verpasste Erwähnungen aus der letzten Sitzung wieder anzeigen.
         if (_settings.MissedMentionsEnabled && _mentions.UnfinishedCount > 0)
             _mentionOverlay.ShowOverlay();
@@ -326,6 +331,31 @@ public sealed class AppController : IDisposable
             _lastMentionCleanupUtc = nowUtc;
             _mentions.Cleanup(_settings.MentionRetentionDays);
         }
+    }
+
+    private void OnPowerModeChanged(object? sender, Microsoft.Win32.PowerModeChangedEventArgs e)
+    {
+        if (e.Mode != Microsoft.Win32.PowerModes.Resume) return;
+        _dispatcher.BeginInvoke(() =>
+        {
+            Logger.Log("Aufwachen aus Standby -> Overlays neu aufbauen");
+            RebuildOverlays();
+        });
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) =>
+        _dispatcher.BeginInvoke(() =>
+        {
+            Logger.Log("Monitor-Konfiguration geändert -> Overlays neu aufbauen");
+            RebuildOverlays();
+        });
+
+    private void RebuildOverlays()
+    {
+        _glow.Build();
+        _glow.SetPersistentBorder(ShouldShowPersistentBorder());
+        if (_mentionOverlay.IsOverlayVisible)
+            _mentionOverlay.ShowOverlay(); // baut das Fenster frisch an der korrekten Position auf
     }
 
     private void OnWatchedPersonSeen(object? sender, string name) =>
@@ -537,6 +567,8 @@ public sealed class AppController : IDisposable
             _transcript.WatchedPersonSeen -= OnWatchedPersonSeen;
             _transcript.Dispose();
         }
+        Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         _autoReturnTimer?.Stop();
         _hotkeys?.Dispose();
         _glow.Dispose();
