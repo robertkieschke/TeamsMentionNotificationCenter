@@ -513,7 +513,12 @@ public sealed class AppController : IDisposable
                 }
             },
             onTestGlow: preview => _glow.PreviewWith(preview),
-            onTestBanner: preview => _banner.PreviewWith(preview));
+            onTestBanner: preview => _banner.PreviewWith(preview),
+            onCaptureHotkey: callback =>
+            {
+                if (_hotkeys == null) callback(null);
+                else _hotkeys.BeginCapture(callback);
+            });
         _settingsWindow.Closed += (_, _) =>
         {
             _settingsWindow = null;

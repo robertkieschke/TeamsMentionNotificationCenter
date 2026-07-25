@@ -30,6 +30,13 @@ public sealed class HotkeyManager : IDisposable
     private Dispatcher? _dispatcher;
     private readonly Dictionary<int, List<(uint Mods, Action Action)>> _byVk = new();
     private readonly HashSet<int> _swallowedDown = new(); // gedrückte Hotkey-Tasten (Repeats/KeyUp mitschlucken)
+    private Action<string?>? _captureCallback; // aktiver „Aufnehmen"-Modus (einmalig)
+
+    /// <summary>Einmaliger Aufnahme-Modus: Der nächste (Nicht-Modifier-)Tastendruck wird als
+    /// Kombinations-Text eingefangen und verschluckt. Esc bricht ab (Callback erhält null).</summary>
+    public void BeginCapture(Action<string?> onCaptured) => _captureCallback = onCaptured;
+
+    public void CancelCapture() => _captureCallback = null;
 
     public void Initialize()
     {
@@ -58,11 +65,26 @@ public sealed class HotkeyManager : IDisposable
 
     private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode < 0 || _byVk.Count == 0)
+        if (nCode < 0 || (_byVk.Count == 0 && _captureCallback == null))
             return CallNextHookEx(_hook, nCode, wParam, lParam);
 
         int msg = wParam.ToInt32();
         int vk = Marshal.ReadInt32(lParam); // KBDLLHOOKSTRUCT.vkCode ist das erste Feld
+
+        // „Aufnehmen"-Modus: nächsten Nicht-Modifier-Tastendruck einfangen und schlucken.
+        if (_captureCallback != null && msg is WM_KEYDOWN or WM_SYSKEYDOWN)
+        {
+            if (!IsModifierKey(vk))
+            {
+                var callback = _captureCallback;
+                _captureCallback = null;
+                string? combo = vk == VK_ESCAPE ? null : BuildComboString(vk);
+                _swallowedDown.Add(vk); // zugehöriges KeyUp ebenfalls schlucken
+                _dispatcher?.BeginInvoke(() => { try { callback(combo); } catch { } });
+                return (IntPtr)1;
+            }
+            return CallNextHookEx(_hook, nCode, wParam, lParam); // Modifier normal durchlassen
+        }
 
         if (msg is WM_KEYUP or WM_SYSKEYUP)
         {
@@ -103,7 +125,39 @@ public sealed class HotkeyManager : IDisposable
 
     private static bool IsDown(int vk) => (GetAsyncKeyState(vk) & 0x8000) != 0;
 
-    private static bool TryParse(string combo, out uint mods, out uint vk)
+    private const int VK_ESCAPE = 0x1B;
+
+    private static bool IsModifierKey(int vk) =>
+        vk is 0x10 or 0x11 or 0x12                    // Shift/Ctrl/Alt (generisch)
+           or VK_LCONTROL or VK_RCONTROL
+           or VK_LMENU or VK_RMENU
+           or 0xA0 or 0xA1                            // LShift/RShift
+           or VK_LWIN or VK_RWIN;
+
+    /// <summary>Baut aus dem aktuellen Modifier-Zustand + Taste den Kombinations-Text
+    /// (exakt in der Semantik des Matchers: Alt = nur LINKS-Alt).</summary>
+    private static string BuildComboString(int vk)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (IsDown(VK_LCONTROL) || IsDown(VK_RCONTROL)) sb.Append("Ctrl+");
+        if (IsDown(VK_LMENU)) sb.Append("Alt+");
+        if (IsDown(VK_SHIFT)) sb.Append("Shift+");
+        if (IsDown(VK_LWIN) || IsDown(VK_RWIN)) sb.Append("Win+");
+        sb.Append(KeyNameForVk(vk));
+        return sb.ToString();
+    }
+
+    private static string KeyNameForVk(int vk)
+    {
+        var name = KeyInterop.KeyFromVirtualKey(vk).ToString();
+        if (name.Length == 2 && name[0] == 'D' && char.IsDigit(name[1])) return name[1..]; // D1 -> 1
+        return name;
+    }
+
+    /// <summary>Parst eine Kombination wie "Ctrl+Alt+Q", "Shift+F9" oder "MediaPlayPause".
+    /// Einzeltasten OHNE Modifier sind nur für F-/Medien-/Sondertasten erlaubt – sonst würde
+    /// z. B. ein versehentlich gebundenes "A" systemweit jedes A verschlucken.</summary>
+    public static bool TryParse(string combo, out uint mods, out uint vk)
     {
         mods = 0;
         vk = 0;
@@ -113,10 +167,18 @@ public sealed class HotkeyManager : IDisposable
         {
             switch (raw.ToLowerInvariant())
             {
-                case "ctrl": case "control": mods |= MOD_CONTROL; break;
+                case "ctrl": case "control": case "strg": mods |= MOD_CONTROL; break;
                 case "alt": mods |= MOD_ALT; break;
                 case "shift": mods |= MOD_SHIFT; break;
                 case "win": case "windows": case "meta": mods |= MOD_WIN; break;
+
+                // Freundliche Aliase für Medientasten.
+                case "playpause": case "play/pause": vk = 0xB3; break;          // VK_MEDIA_PLAY_PAUSE
+                case "nexttrack": case "medianext": vk = 0xB0; break;           // VK_MEDIA_NEXT_TRACK
+                case "prevtrack": case "previoustrack": case "mediaprevious": vk = 0xB1; break; // VK_MEDIA_PREV_TRACK
+                case "stopmedia": case "mediastop": vk = 0xB2; break;           // VK_MEDIA_STOP
+                case "mute": case "volumemute": vk = 0xAD; break;               // VK_VOLUME_MUTE
+
                 default:
                     var keyName = raw.Length == 1 && char.IsDigit(raw[0]) ? "D" + raw : raw;
                     if (Enum.TryParse<Key>(keyName, ignoreCase: true, out var key) && key != Key.None)
@@ -126,8 +188,17 @@ public sealed class HotkeyManager : IDisposable
                     break;
             }
         }
-        return vk != 0;
+        if (vk == 0) return false;
+        if (mods == 0 && !IsAllowedWithoutModifiers(vk)) return false;
+        return true;
     }
+
+    /// <summary>Tasten, die gefahrlos OHNE Modifier gebunden werden dürfen: F1–F24 sowie
+    /// Browser-/Lautstärke-/Medien-Tasten und Pause – keine Schreib-Tasten.</summary>
+    private static bool IsAllowedWithoutModifiers(uint vk) =>
+        vk is >= 0x70 and <= 0x87   // F1–F24
+           or >= 0xA6 and <= 0xB7   // Browser-, Lautstärke-, Medien- und Launch-Tasten
+           or 0x13;                 // Pause
 
     public void Dispose()
     {

@@ -20,6 +20,7 @@ public sealed class SettingsWindow : Window
     private readonly Action<AppSettings> _onApply;
     private readonly Action<AppSettings> _onTestGlow;
     private readonly Action<AppSettings> _onTestBanner;
+    private readonly Action<Action<string?>> _onCaptureHotkey;
 
     // --- Eingabefelder ---
     private readonly TextBox _triggerWords = Multiline(90);
@@ -134,13 +135,14 @@ public sealed class SettingsWindow : Window
     private bool _suppressDirty;
     private static readonly System.Windows.Media.Brush DirtyBrush = System.Windows.Media.Brushes.RoyalBlue;
 
-    public SettingsWindow(AppSettings current, Core.MentionStore mentions, Action<AppSettings> onApply, Action<AppSettings> onTestGlow, Action<AppSettings> onTestBanner)
+    public SettingsWindow(AppSettings current, Core.MentionStore mentions, Action<AppSettings> onApply, Action<AppSettings> onTestGlow, Action<AppSettings> onTestBanner, Action<Action<string?>> onCaptureHotkey)
     {
         _current = current;
         _mentionStore = mentions;
         _onApply = onApply;
         _onTestGlow = onTestGlow;
         _onTestBanner = onTestBanner;
+        _onCaptureHotkey = onCaptureHotkey;
 
         Title = AppInfo.DisplayName + Loc.T(" – Einstellungen");
         Width = 1000;
@@ -322,12 +324,17 @@ public sealed class SettingsWindow : Window
         tabControl.Items.Add(MakeTab(Loc.T("Tastenkürzel"), "",
             new UIElement[]
             {
-                Group(new TextBlock { Text = Loc.T("Format z. B. Ctrl+Alt+G, Shift+F9 …"), Foreground = System.Windows.Media.Brushes.Gray },
-                      Row(Loc.T("Umschalten Ruhe/Gespräch:"), _hotkeyToggle),
-                      Row(Loc.T("In Ruhe-Modus:"), _hotkeyQuiet),
-                      Row(Loc.T("In Gesprächs-Modus:"), _hotkeyConv),
-                      Row(Loc.T("Erkennung an/aus:"), _hotkeyDetection),
-                      Row(Loc.T("Verpasste Erwähnungen anzeigen:"), _hotkeyMissed))
+                Group(new TextBlock
+                      {
+                          Text = Loc.T("Format z. B. Ctrl+Alt+G, Shift+F9 oder Medientasten (PlayPause) – oder per 'Aufnehmen' direkt einfangen."),
+                          Foreground = System.Windows.Media.Brushes.Gray,
+                          TextWrapping = TextWrapping.Wrap
+                      },
+                      Row(Loc.T("Umschalten Ruhe/Gespräch:"), HotkeyEditor(_hotkeyToggle)),
+                      Row(Loc.T("In Ruhe-Modus:"), HotkeyEditor(_hotkeyQuiet)),
+                      Row(Loc.T("In Gesprächs-Modus:"), HotkeyEditor(_hotkeyConv)),
+                      Row(Loc.T("Erkennung an/aus:"), HotkeyEditor(_hotkeyDetection)),
+                      Row(Loc.T("Verpasste Erwähnungen anzeigen:"), HotkeyEditor(_hotkeyMissed)))
             },
             new FrameworkElement[] { _hotkeyToggle, _hotkeyQuiet, _hotkeyConv, _hotkeyDetection, _hotkeyMissed }));
 
@@ -1070,6 +1077,33 @@ public sealed class SettingsWindow : Window
         TextWrapping = TextWrapping.Wrap,
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto
     };
+
+    /// <summary>Hotkey-Feld plus „Aufnehmen"-Knopf: Klick, gewünschte Taste/Kombination drücken
+    /// (auch Medientasten), das Feld füllt sich von selbst; Esc bricht ab.</summary>
+    private StackPanel HotkeyEditor(TextBox box)
+    {
+        var capture = new Button
+        {
+            Content = Loc.T("Aufnehmen"),
+            Padding = new Thickness(10, 3, 10, 3),
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        capture.Click += (_, _) =>
+        {
+            capture.Content = Loc.T("Taste drücken … (Esc bricht ab)");
+            capture.IsEnabled = false;
+            _onCaptureHotkey(combo =>
+            {
+                capture.Content = Loc.T("Aufnehmen");
+                capture.IsEnabled = true;
+                if (combo != null) box.Text = combo; // markiert das Feld automatisch als geändert
+            });
+        };
+        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+        panel.Children.Add(box);
+        panel.Children.Add(capture);
+        return panel;
+    }
 
     /// <summary>Fasst zusammengehörige Einstellungszeilen (z. B. Überschrift + Auswahlfelder)
     /// zu EINER Kachel zusammen.</summary>

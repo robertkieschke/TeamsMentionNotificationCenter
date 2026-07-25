@@ -88,6 +88,10 @@ Musik; per Knopf/Shortcut geht es wieder in den Ruhe-Modus.
   Ungespeicherte Änderungen werden blau markiert; „Übernehmen" speichert, „Verwerfen" setzt zurück.
 - **Standard-Hotkeys** (frei änderbar): `Ctrl+Alt+T` Modus umschalten · `Ctrl+Alt+Q` Ruhe ·
   `Ctrl+Alt+G` Gespräch · `Ctrl+Alt+E` Erkennung an/aus · `Ctrl+Alt+V` Verpasste Erwähnungen anzeigen.
+  Auch **Medientasten** (z. B. Play/Pause) lassen sich binden – am einfachsten über den
+  **„Aufnehmen"-Knopf** neben jedem Kürzel-Feld: klicken, Taste drücken, fertig. Gebundene Tasten
+  werden systemweit von der App übernommen (eine gebundene Play/Pause-Taste steuert dann nicht mehr
+  direkt den Player – der Moduswechsel pausiert die Musik ohnehin).
 - **Release Notes:** Tray → *Release Notes anzeigen* öffnet die Einstellungen direkt im Reiter
   *Release Notes* – alle Versionen untereinander (neueste zuerst), in der eingestellten Sprache.
 

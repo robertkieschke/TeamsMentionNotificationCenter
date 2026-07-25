@@ -193,7 +193,11 @@ public static class Loc
         ["Standard (Standardgerät)"] = ("Default (default device)", "Predefinito (dispositivo predefinito)"),
 
         // --- Tastenkürzel ---
-        ["Format z. B. Ctrl+Alt+G, Shift+F9 …"] = ("Format e.g. Ctrl+Alt+G, Shift+F9 …", "Formato es. Ctrl+Alt+G, Shift+F9 …"),
+        ["Format z. B. Ctrl+Alt+G, Shift+F9 oder Medientasten (PlayPause) – oder per 'Aufnehmen' direkt einfangen."] =
+            ("Format e.g. Ctrl+Alt+G, Shift+F9 or media keys (PlayPause) – or capture directly via 'Capture'.",
+             "Formato es. Ctrl+Alt+G, Shift+F9 o tasti multimediali (PlayPause) – oppure rileva direttamente con 'Rileva'."),
+        ["Aufnehmen"] = ("Capture", "Rileva"),
+        ["Taste drücken … (Esc bricht ab)"] = ("Press a key … (Esc cancels)", "Premi un tasto … (Esc annulla)"),
         ["Umschalten Ruhe/Gespräch:"] = ("Toggle quiet/conversation:", "Alterna silenzioso/conversazione:"),
         ["In Ruhe-Modus:"] = ("To quiet mode:", "Alla modalità silenziosa:"),
         ["In Gesprächs-Modus:"] = ("To conversation mode:", "Alla modalità conversazione:"),
